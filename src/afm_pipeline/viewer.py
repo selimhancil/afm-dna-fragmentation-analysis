@@ -51,18 +51,20 @@ const nav=document.getElementById("nav");
 tabs.forEach(([k,n],i)=>{const b=document.createElement("button");b.textContent=n;b.onclick=()=>show(k);b.id="b_"+k;nav.appendChild(b)});
 function show(k){tabs.forEach(([t])=>{document.getElementById("t_"+t).classList.toggle("on",t==k);document.getElementById("b_"+t).classList.toggle("on",t==k)})}
 show("frames");
+const TR={width_px:"genişlik (piksel)",height_px:"yükseklik (piksel)",crop_top:"kırpma üst",crop_bottom:"kırpma alt",crop_left:"kırpma sol",crop_right:"kırpma sağ",noise_level:"gürültü seviyesi",mask_source:"maske kaynağı",n_objects:"nesne sayısı",n_closed_loop_candidates:"kapalı halka adayı",n_open_candidates:"açık yapı adayı",n_small_objects:"küçük nesne sayısı",n_loop_if_gaps_bridged:"boşluklar kapanırsa halka sayısı",n_scan_line_suspects:"tarama çizgisi şüphelisi",mask_area_px:"maske alanı (piksel)",skeleton_length_px_total:"toplam iskelet uzunluğu (piksel)",largest_object_skeleton_px:"en uzun parça (piksel)",n_bright_features:"parlak özellik sayısı",nm_per_pixel_used:"nm/piksel (tahmin)",scale_status:"ölçek durumu",skeleton_length_nm_estimated:"iskelet uzunluğu (nm, tahmini)",time_earliest_s:"en erken zaman (sn)",time_latest_s:"en geç zaman (sn)",time_status:"zaman durumu",n_objects_tracked:"izlenen nesne",largest_object_px:"en uzun parça (piksel)",total_skeleton_px:"toplam iskelet (piksel)",continuity_fraction:"süreklilik oranı",mean_bright_area_px:"ort. parlak alan (piksel)",split_candidates_reaching_frame:"bu kareye ulaşan kopma adayı",persistent_split_candidates:"kalıcı kopma adayı",largest_object_nm_estimated:"en uzun parça (nm, tahmini)",split_candidates_cumulative:"birikmiş kopma adayı",persistent_splits_cumulative:"birikmiş kalıcı kopma",bright_kept_from_previous:"önceki kareden korunan parlak özellik"};
+const T=k=>TR[k]||k;
 const F=D.frames;let cur=0,timer=null;
 const sl=document.getElementById("sl");sl.max=F.length-1;
 function src(f,l){return l=="orig"?D.raw+f.filename:l=="mask"?D.p2+"masks/"+f.stem+"_mask.png":l=="skel"?D.p2+"skeletons/"+f.stem+"_skeleton.png":D.p2+"overlays/"+f.stem+".png"}
 function go(i){cur=Math.max(0,Math.min(F.length-1,i));sl.value=cur;const f=F[cur];
 document.getElementById("img").src=src(f,document.getElementById("layer").value);
 document.getElementById("lbl").textContent="sıra "+f.rank+" / "+F.length+" · dosya "+f.filename;
-document.getElementById("meas").innerHTML=Object.entries(f.m).map(([k,v])=>"<tr><td class=k>"+k+"</td><td>"+v+"</td></tr>").join("");draw()}
+document.getElementById("meas").innerHTML=Object.entries(f.m).map(([k,v])=>"<tr><td class=k>"+T(k)+"</td><td>"+v+"</td></tr>").join("");draw()}
 sl.oninput=()=>go(+sl.value);document.getElementById("layer").onchange=()=>go(cur);
 document.getElementById("prev").onclick=()=>go(cur-1);document.getElementById("next").onclick=()=>go(cur+1);
 document.getElementById("play").onclick=function(){if(timer){clearInterval(timer);timer=null;this.textContent="▶ Oynat"}else{this.textContent="⏸ Durdur";timer=setInterval(()=>{if(cur>=F.length-1)cur=-1;go(cur+1)},350)}};
 document.addEventListener("keydown",e=>{if(e.key=="ArrowRight")go(cur+1);if(e.key=="ArrowLeft")go(cur-1)});
-const ms=document.getElementById("metric");D.metrics.forEach(m=>{const o=document.createElement("option");o.value=m;o.textContent=m;ms.appendChild(o)});ms.onchange=draw;
+const ms=document.getElementById("metric");D.metrics.forEach(m=>{const o=document.createElement("option");o.value=m;o.textContent=T(m);ms.appendChild(o)});ms.onchange=draw;
 function draw(){const c=document.getElementById("chart"),g=c.getContext("2d"),m=ms.value;if(!m)return;
 const y=F.map(f=>parseFloat(f.m[m])),ok=y.filter(v=>!isNaN(v));g.clearRect(0,0,c.width,c.height);if(!ok.length)return;
 const lo=Math.min(...ok),hi=Math.max(...ok),W=c.width,H=c.height,p=36,sx=i=>p+i*(W-2*p)/Math.max(1,F.length-1),sy=v=>H-p-(hi==lo?.5:(v-lo)/(hi-lo))*(H-2*p);
