@@ -52,6 +52,7 @@ class DnaSettings:
     max_loop_bridge_px: int = 10         # largest gap-bridging radius tried when asking "closes if bridged?"
     edge_fraction: float = 0.4           # outline at this fraction of the strand's own ridge level
     bright_rel_level: float = 1.5        # bright feature peak must reach this multiple of the ridge level
+    spur_min_px: int = 6                 # skeleton side branches shorter than this are pruned
     bright_min_area_px: int = 6
     bright_min_radius_factor: float = 1.5  # spot must be this much thicker than the strand
 
@@ -198,6 +199,48 @@ def skeleton_length(skel: np.ndarray) -> float:
     return float(orth + math.sqrt(2) * diag)
 
 
+def prune_spurs(skel: np.ndarray, min_len: int) -> np.ndarray:
+    """Remove short side branches (spurs) from a 1-px skeleton.
+
+    A spur runs from an end point to the nearest branch point in fewer than `min_len`
+    pixels. Free ends of a strand (no branch point reached) are never shortened.
+    """
+    sk = skel.copy()
+    if min_len <= 1:
+        return sk
+    h, w = sk.shape
+    offsets = [(-1, -1), (-1, 0), (-1, 1), (0, -1), (0, 1), (1, -1), (1, 0), (1, 1)]
+
+    def nbrs(y, x):
+        return [(y + dy, x + dx) for dy, dx in offsets
+                if 0 <= y + dy < h and 0 <= x + dx < w and sk[y + dy, x + dx]]
+
+    for _ in range(3):  # pruning can expose new short spurs
+        changed = False
+        nb = neighbour_count(sk)
+        for y, x in zip(*np.nonzero(sk & (nb == 1))):
+            if not sk[y, x]:
+                continue
+            path, prev, cur = [(y, x)], None, (y, x)
+            reached_branch = False
+            while len(path) < min_len:
+                nxt = [p for p in nbrs(*cur) if p != prev and p not in path]
+                if len(nxt) == 0:
+                    break
+                if len(nxt) > 1 or len(nbrs(*nxt[0])) >= 3:
+                    reached_branch = True
+                    break
+                prev, cur = cur, nxt[0]
+                path.append(cur)
+            if reached_branch and len(path) < min_len:
+                for py, px in path:
+                    sk[py, px] = False
+                changed = True
+        if not changed:
+            break
+    return sk
+
+
 def neighbour_count(skel: np.ndarray) -> np.ndarray:
     k = np.ones((3, 3), dtype=int)
     k[1, 1] = 0
@@ -259,7 +302,7 @@ def analyse(pre: Preprocessed, s: DnaSettings, mask: np.ndarray | None = None) -
     labels[small[labels]] = 0
     mask = labels > 0
     labels, n = ndi.label(mask, structure=np.ones((3, 3)))
-    skel = morphology.skeletonize(mask)
+    skel = prune_spurs(morphology.skeletonize(mask), s.spur_min_px)
     nb = neighbour_count(skel)
     endpoints = skel & (nb == 1)
     branchpoints = skel & (nb >= 3)

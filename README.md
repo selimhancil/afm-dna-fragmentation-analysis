@@ -22,7 +22,7 @@ cleaved by **DNase I** in the presence of **G4 PAMAM dendrimer**.
 
 ```
 config/project_config.ini   scale, time, segmentation settings (status: unknown / estimated / confirmed)
-src/afm_pipeline/           inventory, contact_sheet, order, config, segment, dna, corrections, phase2
+src/afm_pipeline/           inventory, contact_sheet, order, config, segment, dna, corrections, phase2, tracking, phase3
 annotations/                optional manual corrections.csv and annotation masks
 scripts/                    thin runners: 01_inventory ... 05_segment
 tests/                      pytest suite
@@ -49,7 +49,7 @@ Original images are opened read-only and never modified.
 
 1. Inspect images, sequence and quality (done for inventory/order/contact sheet)
 2. Preprocessing and DNA segmentation with overlays (done, under review: `python scripts/06_phase2.py`)
-3. Tracking and candidate fragmentation events
+3. Tracking and candidate fragmentation events (done: `python scripts/07_phase3.py`)
 4. Quantification and time series
 5. Figures (PNG + PDF), CSV/JSON export, report
 

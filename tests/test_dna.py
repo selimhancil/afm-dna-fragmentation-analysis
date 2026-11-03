@@ -180,3 +180,22 @@ def test_phase2_end_to_end(tmp_path):
     assert (tmp_path / "out" / "review_begin_middle_end.pdf").is_file()
     assert (tmp_path / "out" / "parameters.json").is_file()
     assert sorted(p.name for p in data.iterdir()) == ["1.jpg", "11.jpg"]  # originals untouched
+
+
+def test_prune_spurs_removes_short_side_branch_but_keeps_free_ends():
+    from afm_pipeline.dna import prune_spurs
+    sk = np.zeros((20, 30), bool)
+    sk[10, 2:28] = True          # main strand with two free ends
+    sk[6:10, 15] = True          # 4-px spur
+    out = prune_spurs(sk, 6)
+    assert not out[6:9, 15].any()
+    assert out[10, 2] and out[10, 27]                      # free ends kept
+    assert out.sum() <= sk.sum() - 3                       # spur shortened to at most its root pixel
+
+
+def test_prune_spurs_keeps_long_branch():
+    from afm_pipeline.dna import prune_spurs
+    sk = np.zeros((30, 30), bool)
+    sk[20, 2:28] = True
+    sk[5:20, 15] = True          # 15-px branch
+    assert prune_spurs(sk, 6)[5, 15]
