@@ -1,0 +1,56 @@
+# AFM DNA Fragmentation Analysis
+
+Reproducible image-analysis pipeline for time-lapse AFM images of **pBR322 plasmid DNA (4,363 bp)**
+cleaved by **DNase I** in the presence of **G4 PAMAM dendrimer**.
+
+> Status: **preliminary, work in progress.** All results are in pixel units on exported JPG images.
+> Nothing here is a confirmed biological conclusion.
+
+## Data and honest limits
+
+- Input: 74 exported JPG images (about 263-285 px per side). Raw AFM height data is **not** available.
+- Image colours are **not** calibrated heights. No nanometre height is derived from them.
+- Scale (1 µm per frame) and timing (31 s per scan, ~1 h session) come from the supervisor's email and are
+  stored in `config/project_config.ini` as **estimated**, not confirmed. Exact scan times are unknown, so
+  each image gets an earliest/latest possible time, not a single value.
+- Chronological order is **provisional** (plain numbers first, then A, B, C...; numeric within a group).
+- Bright features are called "bright features" / "candidate bound particles". They are not
+  identified as enzyme or dendrimer.
+- No fragmentation event is called confirmed by the software.
+
+## Layout
+
+```
+config/project_config.ini   scale, time, segmentation settings (status: unknown / estimated / confirmed)
+src/afm_pipeline/           inventory, contact_sheet, order, config, segment
+scripts/                    thin runners: 01_inventory ... 05_segment
+tests/                      pytest suite
+data/raw/                   put the 74 JPGs here (not tracked by git)
+outputs/                    generated results (not tracked by git)
+```
+
+## Setup (macOS)
+
+```bash
+bash setup.sh          # creates .venv, installs requirements, runs tests
+source .venv/bin/activate
+python scripts/01_inventory.py
+python scripts/02_contact_sheet.py
+python scripts/03_order.py
+python scripts/04_show_config.py
+python scripts/05_segment.py
+python -m pytest -q
+```
+
+Original images are opened read-only and never modified.
+
+## Roadmap
+
+1. Inspect images, sequence and quality (done for inventory/order/contact sheet)
+2. Preprocessing and DNA segmentation with overlays (region segmentation done; skeletons next)
+3. Tracking and candidate fragmentation events
+4. Quantification and time series
+5. Figures (PNG + PDF), CSV/JSON export, report
+
+Planned validation: diagnostic overlays, manual correction, comparison with manual annotations,
+threshold sensitivity analysis.

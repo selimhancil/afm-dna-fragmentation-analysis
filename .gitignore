@@ -1,0 +1,9 @@
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.DS_Store
+# Raw AFM images are research data from the lab: kept out of git by default.
+data/raw/
+# Generated results can be rebuilt with the scripts.
+outputs/
