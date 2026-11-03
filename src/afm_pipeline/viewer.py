@@ -42,11 +42,21 @@ canvas{width:100%;height:260px;background:var(--card);border:1px solid var(--lin
 <div class="tab" id="t_events"><div class="card scroll"><div class="warn">Sadece aday olay. Satıra tıklayınca o kareye gidersin.</div><table id="evt"></table></div></div>
 <div class="tab" id="t_know"><div class="card"><input type="text" id="q" placeholder="ara (ör. DNase, persistence)" style="width:100%;margin-bottom:8px">
 <div class="warn">Hepsi "unverified". Orijinal makaleden kontrol etmeden yayına koyma.</div><div class="scroll"><table id="kn"></table></div></div></div>
+<div class="tab" id="t_fix"><div class="card"><div class="warn">Maskeyi elle düzeltme aracı. Resimde yanlış bulunan yere tıkla: <b>SİL</b> = DNA olmayan yeri maskeden çıkar, <b>EKLE</b> = kaçan DNA'yı maskeye ekle. Bu işaretler hocanın "elle doğru" referansı olur ve doğruluk ölçümü için kullanılır. Kareyi üstteki Kareler sekmesinden seç (ya da ok tuşları).</div>
+<div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:8px"><b id="fixlbl"></b>
+<label><input type="radio" name="fm" value="erase" checked> SİL</label><label><input type="radio" name="fm" value="add"> EKLE</label>
+<label>yarıçap (piksel) <input type="number" id="fr" value="6" min="1" max="60" style="width:70px"></label>
+<label><input type="checkbox" id="fmask" checked> maskeyi göster</label>
+<button class="btn" id="fprev">◀</button><button class="btn" id="fnext">▶</button>
+<button class="btn" id="fdl">corrections.csv indir</button><button class="btn" id="fclr">bu karedekileri temizle</button></div>
+<div class="row"><canvas id="fc" style="width:100%;max-width:760px;height:auto;cursor:crosshair"></canvas>
+<div class="card" style="flex:1;min-width:260px"><b>İşaretler (tüm kareler: <span id="fcnt">0</span>)</b><div class="scroll" id="flist" style="max-height:50vh"></div>
+<p class="k">İndirdiğin dosyayı <code>afm_project/annotations/corrections.csv</code> olarak kaydet, sonra <code>bash run_all.sh</code> çalıştır. Maske buna göre düzelir. Tarayıcı işaretleri bu bilgisayarda hatırlar.</p></div></div></div></div>
 <div class="tab" id="t_fig"><div class="figs" id="figs"></div></div>
 <div class="tab" id="t_rep"><div class="card"><pre id="rep"></pre></div></div>
 </main><script>
 const D=__DATA__;
-const tabs=[["frames","Kareler"],["events","Aday olaylar"],["know","Kitaplık"],["fig","Grafikler"],["rep","Rapor"]];
+const tabs=[["frames","Kareler"],["events","Aday olaylar"],["know","Kitaplık"],["fix","Düzeltme"],["fig","Grafikler"],["rep","Rapor"]];
 const nav=document.getElementById("nav");
 tabs.forEach(([k,n],i)=>{const b=document.createElement("button");b.textContent=n;b.onclick=()=>show(k);b.id="b_"+k;nav.appendChild(b)});
 function show(k){tabs.forEach(([t])=>{document.getElementById("t_"+t).classList.toggle("on",t==k);document.getElementById("b_"+t).classList.toggle("on",t==k)})}
@@ -83,6 +93,26 @@ kn.innerHTML="<tr><th>konu</th><th>değer</th><th>birim</th><th>orijinal alınt�
 document.getElementById("q").oninput=kr;kr();
 document.getElementById("figs").innerHTML=D.figs.map(f=>"<div><div class=k>"+f+"</div><img src='"+D.p5+f+"'></div>").join("")||"<div class=card>Grafik yok, önce run_all.sh çalıştır.</div>";
 document.getElementById("rep").textContent=D.report||"Rapor yok, önce run_all.sh çalıştır.";
+
+let FIX=[];try{FIX=JSON.parse(localStorage.getItem("afm_fix")||"[]")}catch(e){}
+function fsave(){try{localStorage.setItem("afm_fix",JSON.stringify(FIX))}catch(e){}}
+const fc=document.getElementById("fc"),fg=fc.getContext("2d"),fim=new Image(),fmk=new Image();let fok=false,mok=false;
+function fdraw(){const f=F[cur];document.getElementById("fixlbl").textContent="sıra "+f.rank+" · "+f.filename;
+if(!fok)return;fc.width=fim.naturalWidth;fc.height=fim.naturalHeight;fg.drawImage(fim,0,0);
+if(mok&&document.getElementById("fmask").checked){fg.globalAlpha=.4;fg.drawImage(fmk,+f.m.crop_left||0,+f.m.crop_top||0);fg.globalAlpha=1}
+FIX.filter(x=>x.filename==f.filename).forEach(x=>{fg.strokeStyle=x.action=="erase"?"#ff2d2d":"#22dd55";fg.lineWidth=2;fg.beginPath();fg.arc(x.x,x.y,x.r,0,7);fg.stroke()});
+document.getElementById("fcnt").textContent=FIX.length;
+document.getElementById("flist").innerHTML=FIX.map((x,i)=>x.filename==f.filename?"<div>"+(x.action=="erase"?"SİL":"EKLE")+" ("+x.x+", "+x.y+") r="+x.r+" <a href=# data-i="+i+">x</a></div>":"").join("")||"<span class=k>Bu karede işaret yok.</span>";
+document.querySelectorAll("#flist a").forEach(a=>a.onclick=e=>{e.preventDefault();FIX.splice(+a.dataset.i,1);fsave();fdraw()})}
+function fload(){const f=F[cur];fok=mok=false;fim.onload=()=>{fok=true;fdraw()};fim.src=src(f,"orig");fmk.onload=()=>{mok=true;fdraw()};fmk.src=src(f,"mask")}
+fc.onclick=e=>{const r=fc.getBoundingClientRect(),sc=fc.width/r.width,f=F[cur];
+FIX.push({filename:f.filename,action:document.querySelector("input[name=fm]:checked").value,x:Math.round((e.clientX-r.left)*sc),y:Math.round((e.clientY-r.top)*sc),r:+document.getElementById("fr").value||6});fsave();fdraw()};
+document.getElementById("fmask").onchange=fdraw;
+document.getElementById("fprev").onclick=()=>go(cur-1);document.getElementById("fnext").onclick=()=>go(cur+1);
+document.getElementById("fclr").onclick=()=>{const n=F[cur].filename;FIX=FIX.filter(x=>x.filename!=n);fsave();fdraw()};
+document.getElementById("fdl").onclick=()=>{const t="filename,action,x,y,radius_px\n"+FIX.map(x=>[x.filename,x.action,x.x,x.y,x.r].join(",")).join("\n")+"\n";
+const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([t],{type:"text/csv"}));a.download="corrections.csv";a.click()};
+const _go=go;go=function(i){_go(i);fload()};
 go(0);
 </script></body></html>"""
 
