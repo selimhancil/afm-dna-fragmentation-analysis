@@ -217,16 +217,28 @@ def _groups(links: list[dict], from_ids: list[int], to_ids: list[int]) -> list[t
     return [([n[1] for n in g if n[0] == "a"], [n[1] for n in g if n[0] == "b"]) for g in groups.values()]
 
 
-def min_gap_px(labels: np.ndarray, ids: list[int]) -> float | None:
-    """Smallest distance (px) between any two of the given objects."""
+def min_gap_info(labels: np.ndarray, ids: list[int]) -> tuple[float, tuple[float, float]] | None:
+    """Smallest distance (px) between any two of the given objects, and where it is.
+
+    The location (y, x) is the midpoint of the closest pair of pixels.
+    """
     pts = [np.argwhere(labels == i) for i in ids]
-    best = None
+    best, where = None, None
     for x in range(len(pts)):
         tree = cKDTree(pts[x])
         for y in range(x + 1, len(pts)):
-            d = float(tree.query(pts[y], k=1)[0].min())
-            best = d if best is None else min(best, d)
-    return None if best is None else round(best, 2)
+            dist, idx = tree.query(pts[y], k=1)
+            k = int(np.argmin(dist))
+            if best is None or dist[k] < best:
+                best = float(dist[k])
+                where = tuple((pts[x][idx[k]] + pts[y][k]) / 2.0)
+    return None if best is None else (round(best, 2), (round(where[0], 1), round(where[1], 1)))
+
+
+def min_gap_px(labels: np.ndarray, ids: list[int]) -> float | None:
+    """Smallest distance (px) between any two of the given objects."""
+    info = min_gap_info(labels, ids)
+    return None if info is None else info[0]
 
 
 def track(frames: list[Frame], s: TrackSettings) -> dict:
@@ -269,11 +281,15 @@ def track(frames: list[Frame], s: TrackSettings) -> dict:
                     parents[next_track] = [node_track[(a.rank, src[0])]]
                     next_track += 1
                 if len(big) >= 2:
-                    gap = min_gap_px(b_on_a, big)
+                    info = min_gap_info(b_on_a, big)
+                    gap = None if info is None else info[0]
+                    loc = None if info is None else info[1]
                     flags = []
                     if gap is not None and gap <= s.gap_small_px:
                         flags.append("gap_small_possible_artifact")
-                    event_rows.append(_event(a, b, "split_candidate", src, dst, conf, reg, gap, flags))
+                    ev = _event(a, b, "split_candidate", src, dst, conf, reg, gap, flags)
+                    ev["event_y_px"], ev["event_x_px"] = (None, None) if loc is None else loc
+                    event_rows.append(ev)
             elif len(src) >= 2 and len(dst) == 1:
                 conf = round(conf_base * 0.8, 3)
                 node_track[(b.rank, dst[0])] = next_track

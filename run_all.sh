@@ -1,0 +1,10 @@
+#!/bin/bash
+# Runs the whole pipeline in order. Usage: bash run_all.sh
+set -e
+cd "$(dirname "$0")"
+source .venv/bin/activate
+python scripts/06_phase2.py      # preprocessing + DNA segmentation + overlays
+python scripts/07_phase3.py      # registration, tracking, candidate split events
+python scripts/08_phase4.py      # measurements + sensitivity analysis (about 3 minutes)
+python scripts/09_phase5.py      # figures (PNG + PDF) and report
+echo "DONE. Results are in outputs/ (report: outputs/phase5/report.md)"
