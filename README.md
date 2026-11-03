@@ -56,3 +56,8 @@ Original images are opened read-only and never modified.
 
 Planned validation: diagnostic overlays, manual correction, comparison with manual annotations,
 threshold sensitivity analysis.
+
+## Viewer (app-like)
+
+Double-click `AFM Viewer.command` (macOS) or run `python scripts/12_viewer.py`, then open `outputs/viewer/index.html`.
+Tabs: frames (slider, play, layers, per-frame numbers, time-series chart), candidate events, literature table, figures, report.
