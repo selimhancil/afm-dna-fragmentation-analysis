@@ -1,0 +1,31 @@
+evidence_id,source_id,topic,value,unit,quote,context_note,verified
+E001,abdelhady2003,plasmid size used,4363,bp,a well-characterised 4363 bp plasmid,,unverified
+E002,abdelhady2003,dendrimer,"G4 PAMAM, 64 surface primary amines",,"G4, based on an ethylenediamine core (calculated formula weight 14 215) containing 64 surface primary amino groups",,unverified
+E003,abdelhady2003,AFM frame time,36.6-43.6,s,each image was acquired within 36.6–43.6 s,this paper's frames; our supervisor says ~31 s,unverified
+E004,abdelhady2003,AFM image resolution,256x256,pixels,"with 256 × 256 pixel resolution, except for Figure 3a",,unverified
+E005,abdelhady2003,enzyme dose,2,U/ml DNase I,15 µl of the fluid in the liquid cell was then exchanged with 15 µl of 2 U/ml DNase I,,unverified
+E006,abdelhady2003,naked DNA onset of degradation,9,min after DNase I,starts at ∼9 min after the addition of DNase I,,unverified
+E007,abdelhady2003,naked DNA complete fragmentation,22,min,complete fragmentation within 22 min,,unverified
+E008,abdelhady2003,complex lifetime (naked / 0.5:1 G4:DNA),18 +- 8 / 66 +- 8,min,"18 ± 8 min for naked DNA (n = 3), 66 ± 8 min for 0.5:1 G4:DNA ratio (n = 5)",,unverified
+E009,abdelhady2003,complex lifetime (1:1 G4:DNA),142 +- 37,min,142 ± 37 min for 1:1 G4:DNA ratio (n = 46),,unverified
+E010,abdelhady2003,onset of degradation (0.5:1 and 1:1),~30,min,The onset of degradation for both the 0.5:1 and the 1:1 ratio complexes was ∼30 min.,,unverified
+E011,abdelhady2003,protection at 5:1 ratio,no significant degradation until 120,min,the complexes are still protected at 120 min without any significant degradation,,unverified
+E012,abdelhady2003,fragmentation after 2 h incubation,~10,h,showing extensive fragmentation only after ∼10 h,,unverified
+E013,abdelhady2003,decorated DNA width / height at 0 min,22 +- 5.5 / 3.7 +- 1.4,nm,the measured thickness and height of the decorated DNA strands were 22 ± 5.5 and 3.7 ± 1.4 nm,AFM broadening: width is not true DNA diameter,unverified
+E014,abdelhady2003,undecorated DNA width / height,11.0 +- 0.5 / 0.5 +- 0.1,nm,the measured thickness and height of the undecorated parts were 11.0 ± 0.5 and 0.5± 0.1 nm,,unverified
+E015,abdelhady2003,relaxed DNA extension,66 to 1442,nm,an extension in length of 66 nm to 1442 nm,,unverified
+E016,abdelhady2003,multi-looped molecule length,861,nm,Initially a multi-looped molecule is observed with a length of 861 nm,,unverified
+E017,abdelhady2003,fraction of open-circle pathway,~5% (2 of 44),,"this corresponds to 2 complexes from 44, or ∼5%",,unverified
+E018,murugesapillai2017,pBR322 length,4361,bp,"linearized plasmids pBR322 (4361 bp, Fig. 1b)",paper says 4361; our supervisor says 4363; keep both until checked,unverified
+E019,murugesapillai2017,"DNA persistence length, liquid, 3D fit","49 +- 2, 51 +- 3, 51 +- 1",nm,"are 49 ± 2 nm, 51 ± 3 nm, and 51 ± 1 nm, respectively",,unverified
+E020,murugesapillai2017,"DNA persistence length, air, 2D fit",59 +- 2,nm,the persistence length of naked DNA was estimated to be 59 ± 2 nm,,unverified
+E021,murugesapillai2017,persistence length reference (optical tweezers),50 +- 2,nm,P = 50 ± 2 nm,,unverified
+E022,murugesapillai2017,liquid scan area and pixels,"868x868 to 1.2x1.2 um, 512x512",,The scan size varied from 868 nm × 868 nm to 1.2 μm × 1.2 μm at 512 × 512 pixels,matches our ~1 um frame assumption,unverified
+E023,murugesapillai2017,measured pBR322 length in liquid,4334 +- 116,bp,"pBR322 (liquid) ""4334 ± 116"" bp",from Table 2 as read; contour length in nm per bp not stated,unverified
+E024,abdelhady2013,G4 / G5 formula weight,"14,215 / 28,826",Da,"G4 (formula weight 14,215 Da) and G5 (formula weight 28,826 Da)",,unverified
+E025,abdelhady2013,plasmid DNA average length (background),~1.2,um,pDNA molecules exist in solution as long flexible chains with an average length of ∼1.2 µm,background statement; for pBR322 a full circle is shorter,unverified
+E026,abdelhady2013,G4 dendriplex width / height at 20 min (RNA),43 +- 19.3 / 0.63 +- 0.025,nm,average full width of 43±19.3 nm at half the maximum height and an average height of 0.63±0.025 nm,"siRNA, not DNA",unverified
+E027,abdelhady2013,"DNase I, G4 + pDNA, 15 min incubation (earlier study)",resisted 1,h,resisted degradation by DNase I enzymes for 1 hour,second-hand: ref. 25 of this paper,unverified
+E028,abdelhady2013,"DNase I, G4 + pDNA, 2 h incubation (earlier study)",resisted up to 10,h,resisted degradation by DNase I enzymes for up to 10 hours,second-hand: ref. 25 of this paper,unverified
+E029,mazur_maaloum,DNA persistence length,50 (asymptotic 56),nm,the persistence length $(l_b=50\text{nm})$,,unverified
+E030,mazur_maaloum,AFM pixel size in that study,1.95,nm,with a pixel size (grid spacing) of 1.95nm,our pixel is ~3.6 nm (estimated),unverified
