@@ -1,5 +1,7 @@
 """Builds one self-contained viewer page (outputs/viewer/index.html). Standard library only."""
+import base64
 import csv
+import io
 import json
 from pathlib import Path
 
@@ -69,7 +71,7 @@ const ET={rank_from:"sıra (önce)",rank_to:"sıra (sonra)",filename_from:"dosya
 const TOPIC={E001:"kullanılan plazmit boyutu",E002:"dendrimer (G4 PAMAM, 64 yüzey amini)",E003:"AFM kare süresi",E004:"AFM görüntü çözünürlüğü",E005:"enzim dozu",E006:"çıplak DNA: bozunma başlangıcı",E007:"çıplak DNA: tam parçalanma",E008:"ömür (çıplak / 0.5:1 G4:DNA)",E009:"ömür (1:1 G4:DNA)",E010:"bozunma başlangıcı (0.5:1 ve 1:1)",E011:"5:1 oranında koruma",E012:"2 saat inkübasyondan sonra parçalanma",E013:"süslenmiş DNA genişlik / yükseklik (0. dk)",E014:"süslenmemiş DNA genişlik / yükseklik",E015:"gevşemiş DNA uzama aralığı",E016:"çok halkalı molekül uzunluğu",E017:"açık halka yolunun oranı",E018:"pBR322 uzunluğu",E019:"DNA kalıcılık uzunluğu (sıvı, 3B)",E020:"DNA kalıcılık uzunluğu (hava, 2B)",E021:"kalıcılık uzunluğu referansı (optik cımbız)",E022:"sıvıda tarama alanı ve piksel",E023:"sıvıda ölçülen pBR322 uzunluğu",E024:"G4 / G5 formül ağırlığı",E025:"plazmit DNA ortalama uzunluğu (arka plan)",E026:"G4 dendripleks genişlik / yükseklik (RNA)",E027:"DNase I, G4 + pDNA, 15 dk inkübasyon (önceki çalışma)",E028:"DNase I, G4 + pDNA, 2 saat inkübasyon (önceki çalışma)",E029:"DNA kalıcılık uzunluğu",E030:"o çalışmada AFM piksel boyutu"};
 const F=D.frames;let cur=0,timer=null;
 const sl=document.getElementById("sl");sl.max=F.length-1;
-function src(f,l){return l=="orig"?D.raw+f.filename:l=="mask"?D.p2+"masks/"+f.stem+"_mask.png":l=="skel"?D.p2+"skeletons/"+f.stem+"_skeleton.png":D.p2+"overlays/"+f.stem+".png"}
+function src(f,l){const e=D.img&&D.img[l+"/"+f.stem];if(e)return e;return l=="orig"?D.raw+f.filename:l=="mask"?D.p2+"masks/"+f.stem+"_mask.png":l=="skel"?D.p2+"skeletons/"+f.stem+"_skeleton.png":D.p2+"overlays/"+f.stem+".png"}
 function go(i){cur=Math.max(0,Math.min(F.length-1,i));sl.value=cur;const f=F[cur];
 document.getElementById("img").src=src(f,document.getElementById("layer").value);
 document.getElementById("lbl").textContent="sıra "+f.rank+" / "+F.length+" · dosya "+f.filename;
@@ -91,7 +93,7 @@ ev.querySelectorAll("tr.click").forEach(r=>r.onclick=()=>{show("frames");go(F.fi
 const kn=document.getElementById("kn");function kr(){const q=document.getElementById("q").value.toLowerCase();
 kn.innerHTML="<tr><th>konu</th><th>değer</th><th>birim</th><th>orijinal alıntı (İngilizce, değiştirilmedi)</th><th>kaynak</th><th>durum</th></tr>"+D.know.filter(r=>JSON.stringify(r).toLowerCase().includes(q)).map(r=>"<tr><td>"+(TOPIC[r.evidence_id]||r.topic)+"</td><td>"+r.value+"</td><td>"+r.unit+"</td><td>"+r.quote+(r.context_note?"<br><span class=k>"+r.context_note+"</span>":"")+"</td><td>"+r.src+"</td><td>"+V(r.verified)+"</td></tr>").join("")}
 document.getElementById("q").oninput=kr;kr();
-document.getElementById("figs").innerHTML=D.figs.map(f=>"<div><div class=k>"+f+"</div><img src='"+D.p5+f+"'></div>").join("")||"<div class=card>Grafik yok, önce run_all.sh çalıştır.</div>";
+document.getElementById("figs").innerHTML=D.figs.map(f=>"<div><div class=k>"+f+"</div><img src='"+((D.figimg&&D.figimg[f])||D.p5+f)+"'></div>").join("")||"<div class=card>Grafik yok, önce run_all.sh çalıştır.</div>";
 document.getElementById("rep").textContent=D.report||"Rapor yok, önce run_all.sh çalıştır.";
 
 let FIX=[];try{FIX=JSON.parse(localStorage.getItem("afm_fix")||"[]")}catch(e){}
@@ -133,6 +135,23 @@ def _num(v):
         return v
 
 
+def _data_uri(path, jpeg=False):
+    """Embed an image in the page so it works wherever the file is opened."""
+    path = Path(path)
+    if not path.exists():
+        return None
+    if jpeg:
+        try:
+            from PIL import Image
+            buf = io.BytesIO()
+            Image.open(path).convert("RGB").save(buf, "JPEG", quality=88)
+            return "data:image/jpeg;base64," + base64.b64encode(buf.getvalue()).decode()
+        except Exception:
+            return None
+    mime = "image/jpeg" if path.suffix.lower() in (".jpg", ".jpeg") else "image/png"
+    return f"data:{mime};base64," + base64.b64encode(path.read_bytes()).decode()
+
+
 def build(root):
     root = Path(root)
     out = root / "outputs"
@@ -154,7 +173,19 @@ def build(root):
         know.append(r)
     rep = out / "phase5" / "report.md"
     figs = sorted(p.name for p in (out / "phase5").glob("fig_*.png")) if (out / "phase5").exists() else []
-    data = {"frames": frames, "metrics": metrics, "events": _csv(out / "phase3" / "events.csv"),
+    img = {}
+    for f in frames:
+        for layer, path, jpg in (
+                ("overlay", out / "phase2" / "overlays" / (f["stem"] + ".png"), True),
+                ("mask", out / "phase2" / "masks" / (f["stem"] + "_mask.png"), False),
+                ("skel", out / "phase2" / "skeletons" / (f["stem"] + "_skeleton.png"), False),
+                ("orig", root / "data" / "raw" / f["filename"], False)):
+            uri = _data_uri(path, jpg)
+            if uri:
+                img[f"{layer}/{f['stem']}"] = uri
+    figs_b = {}
+    figimg = {n: _data_uri(out / "phase5" / n) for n in figs}
+    data = {"img": img, "figimg": figimg, "frames": frames, "metrics": metrics, "events": _csv(out / "phase3" / "events.csv"),
             "know": know, "figs": figs, "report": rep.read_text(encoding="utf-8") if rep.exists() else "",
             "raw": "../../data/raw/", "p2": "../phase2/", "p5": "../phase5/"}
     dest = out / "viewer"
