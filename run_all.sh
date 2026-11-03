@@ -7,5 +7,6 @@ python scripts/06_phase2.py      # preprocessing + DNA segmentation + overlays
 python scripts/07_phase3.py      # registration, tracking, candidate split events
 python scripts/08_phase4.py      # measurements + sensitivity analysis (about 3 minutes)
 python scripts/09_phase5.py      # figures (PNG + PDF) and report
+python scripts/13_phase6.py      # bright-feature tracking + mechanism summary
 python scripts/12_viewer.py     # viewer page
 echo "DONE. Results are in outputs/ (report: outputs/phase5/report.md)"

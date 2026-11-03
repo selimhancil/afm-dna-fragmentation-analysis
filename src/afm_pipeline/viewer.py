@@ -44,6 +44,10 @@ canvas{width:100%;height:260px;background:var(--card);border:1px solid var(--lin
 <div class="tab" id="t_events"><div class="card scroll"><div class="warn">Sadece aday olay. Satıra tıklayınca o kareye gidersin.</div><table id="evt"></table></div></div>
 <div class="tab" id="t_know"><div class="card"><input type="text" id="q" placeholder="ara (ör. DNase, persistence)" style="width:100%;margin-bottom:8px">
 <div class="warn">Hepsi "unverified". Orijinal makaleden kontrol etmeden yayına koyma.</div><div class="scroll"><table id="kn"></table></div></div></div>
+<div class="tab" id="t_mech"><div class="warn">Hocanın üç mekanizma sorusu. Parlak özelliklerin ne olduğu (enzim mi dendrimer mi) bilinmiyor. Tek molekül, tek deney, kontrol yok: sayılar <b>tanımlayıcıdır</b>, hiçbir mekanizma bu veriyle doğrulanmış ya da çürütülmüş sayılmaz.</div>
+<div id="mechcards"></div><div class="figs" id="figs6"></div>
+<div class="card scroll" style="margin-top:12px"><b>Parlak özellik izleri</b> <span class="k">(en az 4 görünüm; sıra: ilk kare)</span><table id="trk"></table></div>
+<div class="card scroll" style="margin-top:12px"><b>Her kopma adayının çevresindeki parlak özellikler</b><table id="evf"></table></div></div>
 <div class="tab" id="t_fix"><div class="card"><div class="warn">Maskeyi elle düzeltme aracı. Resimde yanlış bulunan yere tıkla: <b>SİL</b> = DNA olmayan yeri maskeden çıkar, <b>EKLE</b> = kaçan DNA'yı maskeye ekle. Bu işaretler hocanın "elle doğru" referansı olur ve doğruluk ölçümü için kullanılır. Kareyi üstteki Kareler sekmesinden seç (ya da ok tuşları).</div>
 <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:8px"><b id="fixlbl"></b>
 <label><input type="radio" name="fm" value="erase" checked> SİL</label><label><input type="radio" name="fm" value="add"> EKLE</label>
@@ -58,7 +62,7 @@ canvas{width:100%;height:260px;background:var(--card);border:1px solid var(--lin
 <div class="tab" id="t_rep"><div class="card"><pre id="rep"></pre></div></div>
 </main><script>
 const D=__DATA__;
-const tabs=[["frames","Kareler"],["events","Aday olaylar"],["know","Kitaplık"],["fix","Düzeltme"],["fig","Grafikler"],["rep","Rapor"]];
+const tabs=[["frames","Kareler"],["events","Aday olaylar"],["know","Kitaplık"],["mech","Mekanizmalar"],["fix","Düzeltme"],["fig","Grafikler"],["rep","Rapor"]];
 const nav=document.getElementById("nav");
 tabs.forEach(([k,n],i)=>{const b=document.createElement("button");b.textContent=n;b.onclick=()=>show(k);b.id="b_"+k;nav.appendChild(b)});
 function show(k){tabs.forEach(([t])=>{document.getElementById("t_"+t).classList.toggle("on",t==k);document.getElementById("b_"+t).classList.toggle("on",t==k)})}
@@ -115,6 +119,16 @@ document.getElementById("fclr").onclick=()=>{const n=F[cur].filename;FIX=FIX.fil
 document.getElementById("fdl").onclick=()=>{const t="filename,action,x,y,radius_px\n"+FIX.map(x=>[x.filename,x.action,x.x,x.y,x.r].join(",")).join("\n")+"\n";
 const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([t],{type:"text/csv"}));a.download="corrections.csv";a.click()};
 const _go=go;go=function(i){_go(i);fload()};
+
+const TT={track_id:"iz no",first_rank:"ilk kare",last_rank:"son kare",n_detections:"görünme sayısı",lifespan_frames:"ömür (kare)",missed_frames:"kaçırılan kare",motion_class:"hareket",max_dist_from_median_px:"en büyük sapma (piksel)",net_displacement_px:"net yer değiştirme (piksel)",s_first_px:"ilk konum s",s_last_px:"son konum s",net_drift_along_contour_px:"DNA boyunca kayma (piksel)",mean_area_px:"ort. alan (piksel)",area_change_px:"alan değişimi",mean_relative_intensity:"ort. göreli parlaklık",intensity_change:"parlaklık değişimi",fate:"son durum",rank_from:"sıra (önce)",rank_to:"sıra (sonra)",persistence:"kalıcılık",min_gap_px:"boşluk (piksel)",event_s_px:"olay konumu s",n_features_in_frame:"karedeki özellik",nearest_feature_px:"en yakın özellik (piksel)",n_features_near:"yakındaki özellik",near_kept_in_place:"yerinde kaldı",near_moved:"yer değiştirdi",near_lost:"kayboldu",near_unknown:"bilinmiyor"};
+const VT2={stationary:"sabit",moved:"yer değiştirdi",short_track_uncertain:"kısa iz, belirsiz",wandering_uncertain:"dolaşıyor, belirsiz",present_to_last_frame:"son kareye kadar görünüyor"};
+function V2(v){v=String(v);if(VT2[v])return VT2[v];if(v.startsWith("not_seen_after_rank_"))return v.replace("not_seen_after_rank_","kare ")+" sonrası görünmüyor";return V(v)}
+function tbl(el,rows,cols){el.innerHTML="<tr>"+cols.map(k=>"<th>"+(TT[k]||k)+"</th>").join("")+"</tr>"+rows.map(r=>"<tr>"+cols.map(k=>"<td>"+V2(r[k])+"</td>").join("")+"</tr>").join("")}
+if(D.p6&&D.p6.mech.length){document.getElementById("mechcards").innerHTML=D.p6.mech.map(m=>"<div class=card style='margin-bottom:10px'><b>"+m.hypothesis+": "+m.hypothesis_tr+"</b><p><span class=k>Doğruysa beklenen:</span> "+m.expected_if_true_tr+"</p><p><span class=k>Gözlenen:</span> "+m.observed+"</p><p class=k>Sınırlama: "+m.limitation_tr+"</p></div>").join("");
+tbl(document.getElementById("trk"),D.p6.tracks.filter(t=>+t.n_detections>=4),["track_id","first_rank","last_rank","n_detections","motion_class","max_dist_from_median_px","net_drift_along_contour_px","mean_area_px","area_change_px","mean_relative_intensity","fate"]);
+tbl(document.getElementById("evf"),D.p6.events,["rank_from","rank_to","persistence","min_gap_px","event_s_px","nearest_feature_px","n_features_near","near_kept_in_place","near_moved","near_lost"]);
+document.getElementById("figs6").innerHTML=Object.entries(D.p6.figs).map(([n,u])=>"<div><div class=k>"+n+"</div><img src='"+u+"'></div>").join("")}
+else document.getElementById("mechcards").innerHTML="<div class=card>Mekanizma sonuçları yok. Önce Terminal'de run_all.sh çalıştır.</div>";
 go(0);
 </script></body></html>"""
 
@@ -184,8 +198,12 @@ def build(root):
             if uri:
                 img[f"{layer}/{f['stem']}"] = uri
     figs_b = {}
+    p6d = out / "phase6"
+    p6 = {"mech": _csv(p6d / "mechanism_summary.csv"), "tracks": _csv(p6d / "feature_tracks.csv"),
+          "events": _csv(p6d / "event_feature_association.csv"),
+          "figs": {q.name: _data_uri(q) for q in sorted(p6d.glob("fig_*.png"))} if p6d.exists() else {}}
     figimg = {n: _data_uri(out / "phase5" / n) for n in figs}
-    data = {"img": img, "figimg": figimg, "frames": frames, "metrics": metrics, "events": _csv(out / "phase3" / "events.csv"),
+    data = {"p6": p6, "img": img, "figimg": figimg, "frames": frames, "metrics": metrics, "events": _csv(out / "phase3" / "events.csv"),
             "know": know, "figs": figs, "report": rep.read_text(encoding="utf-8") if rep.exists() else "",
             "raw": "../../data/raw/", "p2": "../phase2/", "p5": "../phase5/"}
     dest = out / "viewer"
