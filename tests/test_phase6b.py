@@ -1,7 +1,7 @@
 import numpy as np
 import pandas as pd
 
-from afm_pipeline.phase6b import (HysteresisSettings, classify_pair, find_peak, geodesic_between,
+from afm_pipeline.phase6b import (combine_verdicts, HysteresisSettings, classify_pair, find_peak, geodesic_between,
                                   merge_fragments, snap_to_skeleton, track_confidence)
 
 H = HysteresisSettings()
@@ -67,3 +67,23 @@ def test_track_confidence_levels():
     det = pd.DataFrame({"track_id": [1] * 10 + [2] * 4 + [3], "recovered": [False] * 5 + [True] * 5 + [False, True, True, True, False]})
     out = track_confidence(trk, det, H)
     assert list(out["confidence"]) == ["high", "medium", "low"]
+
+
+def test_classify_pair_path_flip_and_relative_threshold():
+    f = np.arange(10, dtype=float)
+    d = np.array([180, 181, 179, 180, 90, 91, 90, 92, 91, 90], float)      # route switched once, big jump
+    assert classify_pair(f, d, H)["verdict"] == "path_flip"
+    rng = np.random.default_rng(1)
+    big = 180 + 1.0 * f + rng.normal(0, 0.3, 10)                           # +9 px on 180 px: under the 10% rule
+    assert classify_pair(f, big, H)["verdict"] == "spacing_constant"
+
+
+def test_combine_verdicts():
+    assert combine_verdicts("spacing_constant", "spacing_constant")[0] == "spacing_constant"
+    assert combine_verdicts("path_flip", "spacing_constant")[0] == "spacing_constant"
+    assert combine_verdicts("path_flip", "spacing_changes")[0] == "spacing_changes"
+    assert combine_verdicts("spacing_constant", "spacing_changes")[0] == "conflicting_measures"
+    assert combine_verdicts("spacing_changes", "spacing_constant")[0] == "conflicting_measures"
+    assert combine_verdicts("path_flip", "too_few_frames")[0] == "undetermined"
+    assert combine_verdicts("spacing_constant", "too_few_frames")[0] == "spacing_constant"
+    assert combine_verdicts("too_few_frames", "too_few_frames")[0] == "undetermined"

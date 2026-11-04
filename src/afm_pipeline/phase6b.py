@@ -58,6 +58,8 @@ class HysteresisSettings:
     spacing_min_frames: int = 5
     spacing_change_px: float = 8.0   # total change that counts as "spacing changes"
     spacing_alpha: float = 0.01
+    spacing_rel_change: float = 0.10  # ... and at least this fraction of the mean spacing (length-estimate noise ~5%)
+    flip_jump_px: float = 30.0       # one frame-to-frame jump this large = the shortest path switched route (ring opened/closed)
 
 
 # ------------------------------------------------------------------ peak search
@@ -291,21 +293,71 @@ def snap_to_skeleton(skel: np.ndarray, y: float, x: float, max_px: float) -> tup
 
 
 def classify_pair(frames: np.ndarray, d: np.ndarray, h: HysteresisSettings) -> dict:
+    """Constant / changing spacing / path_flip.
+
+    path_flip: some frame-to-frame jump exceeds flip_jump_px. On a ring or a loop the shortest path
+    between two features can switch to the other way round when the loop opens or closes, which changes
+    the spacing by hundreds of px without any feature moving. Such pairs are NOT counted as sliding.
+    A genuine change must exceed both an absolute and a relative threshold (the pixel-chain length
+    estimate itself varies by a few percent)."""
     if len(frames) < h.spacing_min_frames:
         return {"n_frames": len(frames), "verdict": "too_few_frames"}
+    order = np.argsort(frames)
+    frames, d = frames[order], d[order]
     lr = stats.linregress(frames, d)
     span = float(frames.max() - frames.min())
     total = float(lr.slope * span)
-    changes = lr.pvalue < h.spacing_alpha and abs(total) >= h.spacing_change_px
+    jumps = np.abs(np.diff(d))
+    max_jump = float(jumps.max()) if len(jumps) else 0.0
+    need = max(h.spacing_change_px, h.spacing_rel_change * float(d.mean()))
+    if max_jump > h.flip_jump_px:
+        verdict = "path_flip"
+    elif lr.pvalue < h.spacing_alpha and abs(total) >= need:
+        verdict = "spacing_changes"
+    else:
+        verdict = "spacing_constant"
     return {"n_frames": len(frames), "mean_spacing_px": round(float(d.mean()), 1), "sd_px": round(float(d.std()), 2),
             "slope_px_per_frame": round(float(lr.slope), 3), "total_change_px": round(total, 1),
-            "p_value": round(float(lr.pvalue), 4), "step_to_step_jitter_px": round(float(np.median(np.abs(np.diff(d)))), 2),
-            "verdict": "spacing_changes" if changes else "spacing_constant"}
+            "required_change_px": round(need, 1), "max_jump_px": round(max_jump, 1),
+            "p_value": round(float(lr.pvalue), 4), "step_to_step_jitter_px": round(float(np.median(jumps)), 2),
+            "verdict": verdict}
 
 
-def pair_spacing(det: pd.DataFrame, trk: pd.DataFrame, cache: dict, shifts: dict, h: HysteresisSettings):
+def combine_verdicts(sk: str, rf: str) -> tuple[str, str]:
+    """Conservative combination of the two spacing measures.
+
+    spacing_changes only when the reference-contour measure says so and the skeleton measure does not say
+    'constant'; a disagreement stays visible as conflicting_measures instead of being resolved by a coin toss."""
+    unknown = {"too_few_frames"}
+    if rf in unknown and sk in unknown:
+        return "undetermined", "no measure has enough frames"
+    if rf in unknown:
+        return ("undetermined", "skeleton path flipped, no reference-contour measure") if sk == "path_flip" else (sk, "skeleton_path only")
+    if rf == "spacing_changes":
+        if sk == "spacing_constant":
+            return "conflicting_measures", "reference contour says change, skeleton path says constant"
+        return "spacing_changes", "reference contour change, not contradicted by the skeleton path"
+    # rf == spacing_constant
+    if sk == "spacing_changes":
+        return "conflicting_measures", "skeleton path says change, reference contour says constant"
+    return "spacing_constant", "reference contour constant, skeleton path constant or flipped"
+
+
+def pair_spacing(det: pd.DataFrame, trk: pd.DataFrame, cache: dict, shifts: dict, h: HysteresisSettings,
+                 aligned_ranks: set | None = None):
+    """Spacing between two tracked features, two ways:
+      * along each frame's own skeleton (shortest path): independent of registration, but the route can
+        switch on a ring (path_flip);
+      * along the reference contour (difference of the contour positions s): route-consistent, but only in
+        frames aligned to the reference (`aligned_ranks`).
+    The combined verdict uses the reference-contour measure when it has enough frames, otherwise the skeleton one."""
     ids = [int(t) for t in trk.loc[trk["n_detections"] >= h.long_track, "track_id"]]
     pos = {(int(r.track_id), int(r.rank)): (r.y_common, r.x_common) for r in det.itertuples()}
+    spos = {}
+    if aligned_ranks is not None and "s_px" in det:
+        for r in det.itertuples():
+            if int(r.rank) in aligned_ranks and not bool(r.off_reference_contour) and np.isfinite(r.s_px):
+                spos[(int(r.track_id), int(r.rank))] = float(r.s_px)
     series, summary = [], []
     for i, a in enumerate(ids):
         for b in ids[i + 1:]:
@@ -321,13 +373,26 @@ def pair_spacing(det: pd.DataFrame, trk: pd.DataFrame, cache: dict, shifts: dict
                 g = geodesic_between(c["skel"], pa, pb)
                 if g is not None:
                     rows.append((r, g))
-            if not rows:
+            ref = [(r, abs(spos[(a, r)] - spos[(b, r)])) for r in common if (a, r) in spos and (b, r) in spos]
+            if not rows and not ref:
                 continue
-            fr = np.array([x[0] for x in rows], dtype=float)
-            dd = np.array([x[1] for x in rows], dtype=float)
-            for r, g in rows:
-                series.append({"track_a": a, "track_b": b, "rank": r, "spacing_along_dna_px": round(g, 1)})
-            summary.append({"track_a": a, "track_b": b, **classify_pair(fr, dd, h)})
+            res = {"track_a": a, "track_b": b}
+            if rows:
+                fr = np.array([x[0] for x in rows], dtype=float)
+                dd = np.array([x[1] for x in rows], dtype=float)
+                for r, g in rows:
+                    series.append({"track_a": a, "track_b": b, "rank": r, "spacing_along_dna_px": round(g, 1)})
+                sk = classify_pair(fr, dd, h)
+            else:
+                sk = {"n_frames": 0, "verdict": "too_few_frames"}
+            rf = classify_pair(np.array([x[0] for x in ref], dtype=float), np.array([x[1] for x in ref], dtype=float), h) if ref else {"n_frames": 0, "verdict": "too_few_frames"}
+            res.update(sk)
+            res["verdict_skeleton_path"] = sk["verdict"]
+            res["n_frames_reference_contour"] = rf["n_frames"]
+            res["verdict_reference_contour"] = rf["verdict"]
+            res["total_change_reference_px"] = rf.get("total_change_px", np.nan)
+            res["verdict"], res["verdict_reason"] = combine_verdicts(sk["verdict"], rf["verdict"])
+            summary.append(res)
     return pd.DataFrame(series), pd.DataFrame(summary)
 
 
@@ -387,9 +452,11 @@ def spacing_figure(series: pd.DataFrame, summary: pd.DataFrame, out: Path):
     for r in ok.itertuples():
         g = series[(series.track_a == r.track_a) & (series.track_b == r.track_b)].sort_values("rank")
         ax.plot(g["rank"], g["spacing_along_dna_px"], marker="o", ms=2.5, lw=1,
-                color="#d9534f" if r.verdict == "spacing_changes" else "#2255c4", alpha=0.8)
+                color={"spacing_changes": "#d9534f", "conflicting_measures": "#e0a030", "undetermined": "#aaaaaa"}.get(r.verdict, "#2255c4"), alpha=0.8)
     ax.plot([], [], color="#2255c4", label="spacing constant")
     ax.plot([], [], color="#d9534f", label="spacing changes")
+    ax.plot([], [], color="#e0a030", label="measures disagree")
+    ax.plot([], [], color="#aaaaaa", label="undetermined")
     ax.set_xlabel("frame index (provisional order)")
     ax.set_ylabel("distance between two features along the DNA (px)")
     ax.set_title("Feature-to-feature spacing along the DNA skeleton", fontsize=9, loc="left")
@@ -430,11 +497,15 @@ def summary_text(cmp: pd.DataFrame, trk: pd.DataFrame, spacing: pd.DataFrame, n_
     if len(spacing):
         ok = spacing[spacing["n_frames"] >= 5]
         n_c = int((ok["verdict"] == "spacing_changes").sum())
+        n_f = int(ok["verdict"].isin(["conflicting_measures", "undetermined"]).sum())
+        n_k = len(ok) - n_c - n_f
         lines += [
             f"- Özellikler arası DNA boyunca mesafe: {len(ok)} çift en az 5 karede birlikte görünüyor; "
-            f"{len(ok) - n_c} çiftte mesafe sabit, {n_c} çiftte değişiyor "
-            "(değişim eşiği: toplam en az 8 px ve doğrusal eğim p<0.01). Bu ölçü genel hizalamadan bağımsızdır; "
-            "kayma iddiasının en sağlam testi budur."]
+            f"{n_k} çiftte mesafe sabit, {n_c} çiftte iki ölçü de değişim gösteriyor, {n_f} çiftte ölçüler çelişiyor veya belirsiz. "
+            "İki ölçü birleştirildi: hizalı karelerde (≈1–22) referans kontur üzerindeki konum farkı (rota sabit), yeterli kare yoksa her karenin kendi iskeletindeki en kısa yol. "
+            "Yol değişimi: halka biçimli molekülde halka açılıp kapanınca en kısa yol ters yönden dolanır ve mesafe yüzlerce piksel zıplar; "
+            "bu özelliklerin kayması değildir, kayma sayılmadı. Ölçüler çelişirse karar verilmez, çift 'çelişkili' kalır. Gerçek değişim için hem en az 8 px hem ortalama mesafenin %10'u kadar değişim ve "
+            "doğrusal eğim p<0.01 gerekir. Bu ölçü genel hizalamadan bağımsızdır."]
     if null:
         lines += [f"- Kontrol: DNA üzerinde rastgele {null['n_fake']} noktadan başlatılan sahte izler aynı kuralla "
                   f"ortalama {null['fake_mean_recovered']:.1f} zayıf tepe topladı; gerçek izler ortalama "
@@ -476,7 +547,8 @@ def run(outputs: Path, data_dir: Path, config: Path = cfgmod.DEFAULT_CONFIG_PATH
     trk = summarise_tracks(det, last_rank, reliable, fs)
     trk = track_confidence(trk, det, h)
     cmp = comparison_table(trk0, trk, h)
-    series, summ = pair_spacing(det, trk, cache, shifts, h)
+    aligned = set(int(r) for r, v in zip(delta['rank'], delta['contour_matched_fraction_aligned'] >= 0.90) if v)
+    series, summ = pair_spacing(det, trk, cache, shifts, h, aligned)
 
     out = outputs / "phase6b"
     out.mkdir(parents=True, exist_ok=True)
