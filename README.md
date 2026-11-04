@@ -62,6 +62,7 @@ Original images are opened read-only and never modified.
 12. Heading 4: contour length over time, estimator bias measured on synthetic curves, plasmid-length scale cross-check (done: `python scripts/19_lengths.py`)
 13. Heading 5: when and where the DNA breaks, relative to the change point, with a registration-free cut fraction (done: `python scripts/20_where_when.py`)
 14. Heading 6: three-mechanism comparison with three feature sets, Bayes factors, fate check, spacing test (done: `python scripts/21_mechanisms.py`)
+15. Overview of the six requests, short supervisor summary and reply email, all generated from the outputs (done: `python scripts/22_summary.py`)
 
 Planned validation: diagnostic overlays, manual correction, comparison with manual annotations,
 threshold sensitivity analysis.

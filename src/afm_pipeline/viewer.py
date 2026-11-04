@@ -72,15 +72,16 @@ canvas{width:100%;height:260px;background:var(--card);border:1px solid var(--lin
 <div class="tab" id="t_h4"><div class="card"><div id="p6etxt"></div></div><div class="card"><b>Kare kare uzunluk (düzeltilmiş piksel; nm tahmini ölçekle)</b><div class="scroll" id="p6efr" style="max-height:50vh"></div></div><div class="figs" id="figs6e"></div></div>
 <div class="tab" id="t_h5"><div class="card"><div id="p6ftxt"></div></div><div class="card"><b>Her kopma adayı: zaman ve yer</b><div class="scroll" id="p6fev" style="max-height:50vh"></div></div><div class="figs" id="figs6f"></div></div>
 <div class="tab" id="t_h6"><div class="card"><div id="p6gtxt"></div></div><div class="card"><b>Kanıt tablosu</b><div class="scroll" id="p6gev" style="max-height:55vh"></div></div><div class="figs" id="figs6g"></div></div>
+<div class="tab" id="t_ov"><div class="warn">Hocanın üç isteğini altı başlığa böldük. Her satır: ne yapıldı, ne çıktı, nerede sınırlı. Hiçbir sonuç kopmanın gerçekleştiğini ya da özelliğin kimliğini <b>doğrulamaz</b>.</div><div id="ovrows"></div></div>
 <div class="tab" id="t_fig"><div class="figs" id="figs"></div></div>
 <div class="tab" id="t_rep"><div class="card"><pre id="rep"></pre></div></div>
 </main><script>
 const D=__DATA__;
-const tabs=[["frames","Kareler"],["h1","1. Parlak özellik takibi"],["h2","2. Dendrimer–enzim ayrımı"],["h3","3. Yükseklik profili"],["h4","4. Kontur uzunluğu"],["h5","5. Kopma: ne zaman, nerede"],["h6","6. Mekanizma modeli"],["events","Aday olaylar"],["know","Kitaplık"],["time","Zaman ve yer"],["mech","Mekanizmalar (ilk sürüm)"],["fix","Düzeltme"],["fig","Grafikler"],["rep","Rapor"]];
+const tabs=[["ov","Özet: 6 başlık"],["frames","Kareler"],["h1","1. Parlak özellik takibi"],["h2","2. Dendrimer–enzim ayrımı"],["h3","3. Yükseklik profili"],["h4","4. Kontur uzunluğu"],["h5","5. Kopma: ne zaman, nerede"],["h6","6. Mekanizma modeli"],["events","Aday olaylar"],["know","Kitaplık"],["time","Zaman ve yer"],["mech","Mekanizmalar (ilk sürüm)"],["fix","Düzeltme"],["fig","Grafikler"],["rep","Rapor"]];
 const nav=document.getElementById("nav");
 tabs.forEach(([k,n],i)=>{const b=document.createElement("button");b.textContent=n;b.onclick=()=>show(k);b.id="b_"+k;nav.appendChild(b)});
 function show(k){tabs.forEach(([t])=>{document.getElementById("t_"+t).classList.toggle("on",t==k);document.getElementById("b_"+t).classList.toggle("on",t==k)})}
-show("frames");
+show("ov");
 const TR={width_px:"genişlik (piksel)",height_px:"yükseklik (piksel)",crop_top:"kırpma üst",crop_bottom:"kırpma alt",crop_left:"kırpma sol",crop_right:"kırpma sağ",noise_level:"gürültü seviyesi",mask_source:"maske kaynağı",n_objects:"nesne sayısı",n_closed_loop_candidates:"kapalı halka adayı",n_open_candidates:"açık yapı adayı",n_small_objects:"küçük nesne sayısı",n_loop_if_gaps_bridged:"boşluklar kapanırsa halka sayısı",n_scan_line_suspects:"tarama çizgisi şüphelisi",mask_area_px:"maske alanı (piksel)",skeleton_length_px_total:"toplam iskelet uzunluğu (piksel)",largest_object_skeleton_px:"en uzun parça (piksel)",n_bright_features:"parlak özellik sayısı",nm_per_pixel_used:"nm/piksel (tahmin)",scale_status:"ölçek durumu",skeleton_length_nm_estimated:"iskelet uzunluğu (nm, tahmini)",time_earliest_s:"en erken zaman (sn)",time_latest_s:"en geç zaman (sn)",time_status:"zaman durumu",n_objects_tracked:"izlenen nesne",largest_object_px:"en uzun parça (piksel)",total_skeleton_px:"toplam iskelet (piksel)",continuity_fraction:"süreklilik oranı",mean_bright_area_px:"ort. parlak alan (piksel)",split_candidates_reaching_frame:"bu kareye ulaşan kopma adayı",persistent_split_candidates:"kalıcı kopma adayı",largest_object_nm_estimated:"en uzun parça (nm, tahmini)",split_candidates_cumulative:"birikmiş kopma adayı",persistent_splits_cumulative:"birikmiş kalıcı kopma",bright_kept_from_previous:"önceki kareden korunan parlak özellik"};
 const T=k=>TR[k]||k;
 const VT={estimated:"tahmini",unknown:"bilinmiyor",confirmed:"doğrulanmış",unverified:"doğrulanmadı",user_verified:"kullanıcı doğruladı",supervisor_verified:"hoca doğruladı",automatic:"otomatik",continuation:"devam",split_candidate:"kopma adayı",merge_candidate:"birleşme adayı",object_lost:"nesne kayboldu",new_object:"yeni nesne",complex_change:"karmaşık değişim",persistent:"kalıcı",transient_rejoined:"geçici, tekrar birleşti",unresolved_end_of_series:"seri bitti, belirsiz",gap_small_possible_artifact:"küçük boşluk, olası görüntü hatası","candidate only; not a confirmed cleavage":"sadece aday; doğrulanmış kesim değil"};
@@ -146,6 +147,7 @@ else document.getElementById("mechcards").innerHTML="<div class=card>Mekanizma s
 
 const CAP={fig_loss_time_map:"Kopma nerede, ne zaman: ilk 22 karede DNA konturu üzerindeki boşluklar (renk = ilk boşluk karesi, x = aday kopma, yanındaki sayı kare)",fig_contour_coverage_intensity_time:"Soldan sağa: kontur örtüşmesi ile süreklilik, DNA parlaklık seviyesi, soluk iskelet oranı (hepsi JPG yoğunluğu, yükseklik değil)",fig_model_llr_vs_R:"Olasılık modeli: kopma yerinin parlak özelliğe yakın / uzak olması, bağımsız modele göre (0'ın altı = bağımsızdan kötü)",fig_behaviour_classes:"Parlak özelliklerin davranış sınıfları (boyut, parlaklık, ömür)",fig_feature_kymograph:"Parlak özellikler DNA boyunca zamanla (nokta büyüklüğü = alan)",fig_feature_size_brightness_time:"Her izin boyutu ve göreli parlaklığı zamanla",fig_feature_size_brightness_groups:"İzlerin boyut-parlaklık dağılımı ve ömürleri",fig_changepoint:"Kopma ne zaman: en uzun parça ve süreklilik serisinde kırılma noktası (kırmızı basamak, açık kırmızı = %95 aralık, noktalı çizgi = kalıcı kopma adayı), sağda 36 eşik ayarında kırılma noktası",fig_event_vs_random:"Kopma yerleri ile rastgele DNA noktalarının parlak özelliğe uzaklığı"};
 function figs(el,obj){el.innerHTML=Object.entries(obj).map(([n,u])=>"<div><div class=k>"+(CAP[n.replace(".png","")]||n)+"</div><img src='"+u+"'></div>").join("")}
+if(D.overview&&D.overview.length){document.getElementById("ovrows").innerHTML=D.overview.map(x=>"<div class=card style='margin-bottom:10px'><b>"+x.no+". "+x.istek+"</b> <span class=k>["+x.durum+"]</span><p><span class=k>Yapılan:</span> "+x.yapilan+"</p><p><span class=k>Sonuç:</span> "+x.sonuc+"</p><p><span class=k>Sınır:</span> "+x.sinir+"</p></div>").join("")}
 if(D.p6b){document.getElementById("p6btxt").innerHTML=(D.p6b.summary||"").split("\n").filter(x=>x.trim()).map(x=>"<p>"+x.replace(/^[-#]+ ?/,"").replace(/\*\*(.+?)\*\*/g,"<b>$1</b>")+"</p>").join("");
 tbl(document.getElementById("p6bcmp"),D.p6b.cmp,["version","n_tracks","tracks_with_1_detection","tracks_with_6plus_detections","median_detections_per_track","total_detections"]);
 tbl(document.getElementById("p6btrk"),D.p6b.tracks,["track_id","n_detections","n_strong_detections","n_recovered_detections","motion_class","confidence"]);
@@ -279,12 +281,14 @@ def build(root):
     p6g = {"summary": (p6gd / "summary_tr.md").read_text(encoding="utf-8") if (p6gd / "summary_tr.md").exists() else "",
            "evidence": _csv(p6gd / "hypothesis_evidence.csv"),
            "figs": {q.name: _data_uri(q) for q in sorted(p6gd.glob("fig_*.png")) if q.stem in KNOWN_FIGS} if p6gd.exists() else {}}
+    ovp = out / "supervisor" / "overview_rows.json"
+    overview = json.loads(ovp.read_text(encoding="utf-8")) if ovp.is_file() else []
     p8d = out / "phase8"
     p8 = {"summary": (p8d / "summary_tr.md").read_text(encoding="utf-8") if (p8d / "summary_tr.md").exists() else "",
           "lit": _csv(p8d / "literature_comparison.csv"),
           "figs": {q.name: _data_uri(q) for q in sorted(p8d.glob("fig_*.png")) if q.stem in KNOWN_FIGS} if p8d.exists() else {}}
     figimg = {n: _data_uri(out / "phase5" / n) for n in figs}
-    data = {"p6g": p6g, "p6f": p6f, "p6e": p6e, "p6d": p6d, "p6c": p6c, "p6b": p6b, "p8": p8, "p7": p7, "p6": p6, "img": img, "figimg": figimg, "frames": frames, "metrics": metrics, "events": _csv(out / "phase3" / "events.csv"),
+    data = {"overview": overview, "p6g": p6g, "p6f": p6f, "p6e": p6e, "p6d": p6d, "p6c": p6c, "p6b": p6b, "p8": p8, "p7": p7, "p6": p6, "img": img, "figimg": figimg, "frames": frames, "metrics": metrics, "events": _csv(out / "phase3" / "events.csv"),
             "know": know, "figs": figs, "report": rep.read_text(encoding="utf-8") if rep.exists() else "",
             "raw": "../../data/raw/", "p2": "../phase2/", "p5": "../phase5/"}
     dest = out / "viewer"
