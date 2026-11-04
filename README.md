@@ -59,6 +59,7 @@ Original images are opened read-only and never modified.
 9. Heading 1 strengthened: hysteresis tracking with a random-seed control, track confidence, feature-to-feature spacing along the DNA, photo strips of every long track (done: `python scripts/16_phase6b.py`)
 10. Heading 2: do the bright features fall into populations? Mixture test, within/between-track consistency, associations (done: `python scripts/17_phase6c.py`)
 11. Heading 3: height profile in ASSUMED nm from an editable `[height]` setting, with a plausibility check and optional DNA-height anchor (done: `python scripts/18_heights.py`)
+12. Heading 4: contour length over time, estimator bias measured on synthetic curves, plasmid-length scale cross-check (done: `python scripts/19_lengths.py`)
 
 Planned validation: diagnostic overlays, manual correction, comparison with manual annotations,
 threshold sensitivity analysis.
