@@ -262,10 +262,10 @@ def verdict_text(llr: pd.DataFrame, fate: dict, trk: pd.DataFrame, cls_tests: di
                  "model_numbers": f"Yakın modeli (R=30 px, 16 aday): {nt}. {grid} "
                                   f"Yakındaki {fate.get('n_near_features')} özellikten {fate.get('n_lost')} kayboldu "
                                   f"(genel kayıp oranı {fate.get('baseline_lost_fraction')}; 'yarısı kaybolurdu' beklentisine karşı p={fate.get('p_value_if_half_were_lost')}).",
-                 "reading_tr": f"Konum modeli: yakın modeli {near_s}. Özelliklerin kaybolması da görülmüyor. Bu veride H1 desteklenmiyor."})
+                 "reading_tr": f"Konum modeli: yakın modeli {near_s}. İlk sürümdür (yalnızca güçlü tespitler); güncel ve üç özellik kümesiyle karşılaştırılmış değerlendirme Başlık 6'dadır (outputs/mechanisms)."})
     rows.append({"hypothesis": "H2", "hypothesis_tr": "Dendrimerler DNA üzerinde kendiliğinden kayar",
                  "model_numbers": f"{len(long)} uzun izden {n_st} sabit, {n_mv} yer değiştirmiş.",
-                 "reading_tr": "Belirgin bir kayma yok. Küçük kaymalar hizalama hatası kadar olabilir. Bu veride H2 desteklenmiyor."})
+                 "reading_tr": "İlk sürüm: yalnızca hareket sınıflarına bakıldı. Özellikler arası mesafeye dayanan güncel H2 testi Başlık 1 ve Başlık 6'dadır (outputs/phase6b, outputs/mechanisms)."})
     rows.append({"hypothesis": "H3", "hypothesis_tr": "Enzim yalnızca çıplak bölgeleri keser",
                  "model_numbers": f"Uzak modeli (R=30 px, 16 aday): {ft}. {grid}",
                  "reading_tr": f"Konum modeli: uzak modeli {far_s}. Ama özelliğin yanındaki soluk DNA eşiklemede kopuk görünebilir (yöntem etkisi), "
@@ -435,12 +435,12 @@ def summary_text(prof: dict, class_df: pd.DataFrame, info: dict, fate: dict, ver
         f"- Sonraki karelerde kontur örtüşmesi %{100 * float(pf['contour_covered_fraction'].iloc[-1]):.0f} civarına iniyor. Faz 4'te en uzun parça "
         "ilk 49 karede benzer uzunlukta kaldığı için bu düşüş büyük olasılıkla DNA'nın kaybolması değil şeklinin değişmesidir "
         "(yalnızca öteleme hizalaması kullanıldı). Bu veriyle kesin ayrılamaz.",
-        "- Yükseklik profili yapılamadı: yalnızca JPG yoğunluğu var. DNA'nın kendi iskeleti üzerindeki yoğunluk (ridge seviyesine göre) "
-        "ve soluk iskelet oranı kare kare verildi, bunlar kalibre edilmiş yükseklik değildir.",
+        "- Bu fazda yükseklik yok: yalnızca JPG yoğunluğu (ridge seviyesine göre) ve soluk iskelet oranı kare kare verildi, bunlar kalibre edilmiş yükseklik değildir. "
+        "Varsayımsal nm yüksekliği Başlık 3'te (outputs/heights, config [height]) ayrıca ve 'VARSAYIM' etiketiyle üretilir.",
         f"- Davranış sınıfları ({', '.join(f'{CLS_TR.get(r.behaviour_class, r.behaviour_class)}: {r.n_tracks}' for r in class_df.itertuples())}): "
-        "uzun ömürlü sabit özellikler kısa ömürlülerden belirgin büyük ve parlak. Bu bir kimlik ataması değildir.",
+        "uzun ömürlü sabit özellikler kısa ömürlülerden belirgin büyük ve parlak; ancak küçük ve soluk özellikler eşik altına kolay düştüğü için kısa ömürlü görünür, bu fark kısmen seçilim etkisidir. Bu bir kimlik ataması değildir (ayrıntı: Başlık 2).",
         f"- İzlerin {info['diagnostics']['single_detection_tracks']}/{info['diagnostics']['tracks']} tanesi tek karede görünüyor "
-        "(eşik titremesi ya da gürültü olabilir); elle kontrol edilmedi.",
+        "(bu fazda yalnızca güçlü tespitler izlendi). Zayıf ama tutarlı tepeleri de izleyen güçlendirilmiş takip Başlık 1'dedir (outputs/phase6b), tek karelik iz sayısı orada çok azalır.",
         "",
         "### Üç mekanizma (olasılık modeli, tanımlayıcı)",
     ]
