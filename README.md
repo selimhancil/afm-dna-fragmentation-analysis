@@ -56,6 +56,7 @@ Original images are opened read-only and never modified.
 6. Bright-feature tracking along the DNA contour, event-feature association, mechanism table H1/H2/H3 (done: `python scripts/13_phase6.py`)
 7. Contour intensity profile and gap map, behavioural classes of bright features, likelihood-model comparison of the three mechanisms (done: `python scripts/14_phase7.py`)
 8. Change-point analysis (when does the large step happen, 95% interval, 36-setting robustness, literature context) (done: `python scripts/15_phase8.py`)
+9. Heading 1 strengthened: hysteresis tracking with a random-seed control, track confidence, feature-to-feature spacing along the DNA, photo strips of every long track (done: `python scripts/16_phase6b.py`)
 
 Planned validation: diagnostic overlays, manual correction, comparison with manual annotations,
 threshold sensitivity analysis.

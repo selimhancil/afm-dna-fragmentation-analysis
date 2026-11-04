@@ -8,6 +8,7 @@ python scripts/07_phase3.py      # registration, tracking, candidate split event
 python scripts/08_phase4.py      # measurements + sensitivity analysis (about 3 minutes)
 python scripts/09_phase5.py      # figures (PNG + PDF) and report
 python scripts/13_phase6.py      # bright-feature tracking + mechanism summary
+python scripts/16_phase6b.py     # heading 1: hysteresis tracking, confidence, spacing along DNA, photo strips
 python scripts/14_phase7.py      # contour profile, gap map, behaviour classes, model comparison
 python scripts/15_phase8.py      # change-point analysis of the fragmentation series
 python scripts/12_viewer.py     # viewer page

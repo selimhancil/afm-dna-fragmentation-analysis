@@ -5,7 +5,7 @@ import io
 import json
 from pathlib import Path
 
-KNOWN_FIGS = {"fig_loss_time_map", "fig_contour_coverage_intensity_time", "fig_model_llr_vs_R", "fig_behaviour_classes",
+KNOWN_FIGS = {"fig_track_montage", "fig_pair_spacing", "fig_loss_time_map", "fig_contour_coverage_intensity_time", "fig_model_llr_vs_R", "fig_behaviour_classes",
               "fig_feature_kymograph", "fig_feature_size_brightness_time", "fig_feature_size_brightness_groups",
               "fig_event_vs_random", "fig_changepoint"}
 
@@ -66,11 +66,12 @@ canvas{width:100%;height:260px;background:var(--card);border:1px solid var(--lin
 <div class="row"><canvas id="fc" style="width:100%;max-width:760px;height:auto;cursor:crosshair"></canvas>
 <div class="card" style="flex:1;min-width:260px"><b>İşaretler (tüm kareler: <span id="fcnt">0</span>)</b><div class="scroll" id="flist" style="max-height:50vh"></div>
 <p class="k">İndirdiğin dosyayı <code>afm_project/annotations/corrections.csv</code> olarak kaydet, sonra <code>bash run_all.sh</code> çalıştır. Maske buna göre düzelir. Tarayıcı işaretleri bu bilgisayarda hatırlar.</p></div></div></div></div>
+<div class="tab" id="t_h1"><div class="card"><div id="p6btxt"></div></div><div class="card"><b>Güçlü ve zayıf tespitlerle iz sayıları</b><div class="scroll" id="p6bcmp"></div></div><div class="card"><b>Her iz için güven düzeyi</b><div class="scroll" id="p6btrk" style="max-height:50vh"></div></div><div class="figs" id="figs6b"></div></div>
 <div class="tab" id="t_fig"><div class="figs" id="figs"></div></div>
 <div class="tab" id="t_rep"><div class="card"><pre id="rep"></pre></div></div>
 </main><script>
 const D=__DATA__;
-const tabs=[["frames","Kareler"],["events","Aday olaylar"],["know","Kitaplık"],["time","Zaman ve yer"],["mech","Mekanizmalar"],["fix","Düzeltme"],["fig","Grafikler"],["rep","Rapor"]];
+const tabs=[["frames","Kareler"],["h1","1. Parlak özellik takibi"],["events","Aday olaylar"],["know","Kitaplık"],["time","Zaman ve yer"],["mech","Mekanizmalar"],["fix","Düzeltme"],["fig","Grafikler"],["rep","Rapor"]];
 const nav=document.getElementById("nav");
 tabs.forEach(([k,n],i)=>{const b=document.createElement("button");b.textContent=n;b.onclick=()=>show(k);b.id="b_"+k;nav.appendChild(b)});
 function show(k){tabs.forEach(([t])=>{document.getElementById("t_"+t).classList.toggle("on",t==k);document.getElementById("b_"+t).classList.toggle("on",t==k)})}
@@ -140,6 +141,10 @@ else document.getElementById("mechcards").innerHTML="<div class=card>Mekanizma s
 
 const CAP={fig_loss_time_map:"Kopma nerede, ne zaman: ilk 22 karede DNA konturu üzerindeki boşluklar (renk = ilk boşluk karesi, x = aday kopma, yanındaki sayı kare)",fig_contour_coverage_intensity_time:"Soldan sağa: kontur örtüşmesi ile süreklilik, DNA parlaklık seviyesi, soluk iskelet oranı (hepsi JPG yoğunluğu, yükseklik değil)",fig_model_llr_vs_R:"Olasılık modeli: kopma yerinin parlak özelliğe yakın / uzak olması, bağımsız modele göre (0'ın altı = bağımsızdan kötü)",fig_behaviour_classes:"Parlak özelliklerin davranış sınıfları (boyut, parlaklık, ömür)",fig_feature_kymograph:"Parlak özellikler DNA boyunca zamanla (nokta büyüklüğü = alan)",fig_feature_size_brightness_time:"Her izin boyutu ve göreli parlaklığı zamanla",fig_feature_size_brightness_groups:"İzlerin boyut-parlaklık dağılımı ve ömürleri",fig_changepoint:"Kopma ne zaman: en uzun parça ve süreklilik serisinde kırılma noktası (kırmızı basamak, açık kırmızı = %95 aralık, noktalı çizgi = kalıcı kopma adayı), sağda 36 eşik ayarında kırılma noktası",fig_event_vs_random:"Kopma yerleri ile rastgele DNA noktalarının parlak özelliğe uzaklığı"};
 function figs(el,obj){el.innerHTML=Object.entries(obj).map(([n,u])=>"<div><div class=k>"+(CAP[n.replace(".png","")]||n)+"</div><img src='"+u+"'></div>").join("")}
+if(D.p6b){document.getElementById("p6btxt").innerHTML=(D.p6b.summary||"").split("\n").filter(x=>x.trim()).map(x=>"<p>"+x.replace(/^[-#]+ ?/,"").replace(/\*\*(.+?)\*\*/g,"<b>$1</b>")+"</p>").join("");
+tbl(document.getElementById("p6bcmp"),D.p6b.cmp,["version","n_tracks","tracks_with_1_detection","tracks_with_6plus_detections","median_detections_per_track","total_detections"]);
+tbl(document.getElementById("p6btrk"),D.p6b.tracks,["track_id","n_detections","n_strong_detections","n_recovered_detections","motion_class","confidence"]);
+figs(document.getElementById("figs6b"),D.p6b.figs)}
 if(D.p7&&D.p7.figs){figs(document.getElementById("figs7a"),Object.fromEntries(Object.entries(D.p7.figs).filter(([n])=>/loss_time|coverage/.test(n))));
 document.getElementById("p7txt").innerHTML=(D.p7.summary||"").split("\n").filter(x=>x.trim()).map(x=>"<p>"+x.replace(/^[-#]+ ?/,"").replace(/\*\*(.+?)\*\*/g,"<b>$1</b>")+"</p>").join("");
 tbl(document.getElementById("cls"),D.p7.classes,["behaviour_class","n_tracks","median_area_px","median_relative_intensity","median_lifespan_frames"]);
@@ -228,12 +233,16 @@ def build(root):
     p7 = {"mech": _csv(p7d / "mechanism_model_summary.csv"), "classes": _csv(p7d / "behaviour_class_summary.csv"),
           "summary": (p7d / "summary_tr.md").read_text(encoding="utf-8") if (p7d / "summary_tr.md").exists() else "",
           "figs": {q.name: _data_uri(q) for q in sorted(p7d.glob("fig_*.png")) if q.stem in KNOWN_FIGS} if p7d.exists() else {}}
+    p6bd = out / "phase6b"
+    p6b = {"summary": (p6bd / "summary_tr.md").read_text(encoding="utf-8") if (p6bd / "summary_tr.md").exists() else "",
+           "cmp": _csv(p6bd / "track_comparison.csv"), "tracks": _csv(p6bd / "feature_tracks_v2.csv"),
+           "figs": {q.name: _data_uri(q) for q in sorted(p6bd.glob("fig_*.png")) if q.stem in KNOWN_FIGS} if p6bd.exists() else {}}
     p8d = out / "phase8"
     p8 = {"summary": (p8d / "summary_tr.md").read_text(encoding="utf-8") if (p8d / "summary_tr.md").exists() else "",
           "lit": _csv(p8d / "literature_comparison.csv"),
           "figs": {q.name: _data_uri(q) for q in sorted(p8d.glob("fig_*.png")) if q.stem in KNOWN_FIGS} if p8d.exists() else {}}
     figimg = {n: _data_uri(out / "phase5" / n) for n in figs}
-    data = {"p8": p8, "p7": p7, "p6": p6, "img": img, "figimg": figimg, "frames": frames, "metrics": metrics, "events": _csv(out / "phase3" / "events.csv"),
+    data = {"p6b": p6b, "p8": p8, "p7": p7, "p6": p6, "img": img, "figimg": figimg, "frames": frames, "metrics": metrics, "events": _csv(out / "phase3" / "events.csv"),
             "know": know, "figs": figs, "report": rep.read_text(encoding="utf-8") if rep.exists() else "",
             "raw": "../../data/raw/", "p2": "../phase2/", "p5": "../phase5/"}
     dest = out / "viewer"
