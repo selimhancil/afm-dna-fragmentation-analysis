@@ -170,13 +170,58 @@ def reference_contour(phase2: Path, frames: pd.DataFrame, rank: int = 1) -> Cont
     return Contour(pts, arc_map[ys, xs], cKDTree(pts))
 
 
-def add_contour_position(b: pd.DataFrame, contour: Contour, s: FeatureSettings) -> pd.DataFrame:
+def add_contour_position(b: pd.DataFrame, contour: Contour, s: FeatureSettings,
+                         delta: pd.DataFrame | None = None) -> pd.DataFrame:
+    """Position along the reference contour. `delta` (per-frame ddy, ddx from refine_alignment)
+    moves a feature from cumulative-registration coordinates into the reference contour frame."""
     b = b.copy()
-    res = [contour.project(y, x) for y, x in zip(b["y_common"], b["x_common"])]
+    d = delta.set_index("rank") if delta is not None else None
+    ddy = b["rank"].map(d["ddy"]).to_numpy(float) if d is not None else np.zeros(len(b))
+    ddx = b["rank"].map(d["ddx"]).to_numpy(float) if d is not None else np.zeros(len(b))
+    b["y_ref"] = b["y_common"].to_numpy(float) - ddy
+    b["x_ref"] = b["x_common"].to_numpy(float) - ddx
+    res = [contour.project(y, x) for y, x in zip(b["y_ref"], b["x_ref"])]
     b["s_px"] = [round(r[0], 1) for r in res]
     b["dist_to_ref_contour_px"] = [round(r[1], 1) for r in res]
     b["off_reference_contour"] = b["dist_to_ref_contour_px"] > s.off_contour_px
     return b
+
+
+def refine_alignment(phase2: Path, frames: pd.DataFrame, shifts: dict, contour: Contour,
+                     window: int = 25, tol: int = 2) -> pd.DataFrame:
+    """Per-frame extra shift (ddy, ddx) that best lays the frame-1 contour onto the DNA mask of the frame.
+
+    The cumulative pairwise registration drifts (the molecule moves up to ~40 px over the series),
+    so each frame is also aligned directly to the reference contour by maximising how many contour
+    pixels fall on its (slightly dilated) mask. Pure translation: a deforming molecule stays partly
+    unmatched, which is reported as low coverage, not hidden."""
+    from skimage import morphology
+    pts = contour.points.astype(int)
+    rows = []
+    for fr in frames.sort_values("rank").itertuples():
+        dy, dx = shifts.get(int(fr.rank), (0.0, 0.0))
+        path = phase2 / "masks" / f"{int(fr.rank):02d}_{Path(fr.filename).stem}_mask.png"
+        mask = np.asarray(Image.open(path).convert("L")) > 127
+        dil = ndi.binary_dilation(mask, structure=morphology.disk(tol))
+        h, w = dil.shape
+        cy0 = np.rint(pts[:, 0] - fr.crop_top - dy).astype(int)
+        cx0 = np.rint(pts[:, 1] - fr.crop_left - dx).astype(int)
+
+        def score(ddy, ddx):
+            yy, xx = cy0 + ddy, cx0 + ddx
+            ok = (yy >= 0) & (yy < h) & (xx >= 0) & (xx < w)
+            return float(dil[yy[ok], xx[ok]].sum()) / len(pts)
+        best = (score(0, 0) + 1e-9, 0, 0)
+        s0 = best[0]
+        for ddy in range(-window, window + 1):
+            for ddx in range(-window, window + 1):
+                sc = score(ddy, ddx) - 0.0005 * (abs(ddy) + abs(ddx))
+                if sc > best[0]:
+                    best = (sc, ddy, ddx)
+        rows.append({"rank": int(fr.rank), "ddy": best[1], "ddx": best[2],
+                     "contour_matched_fraction_at_zero": round(s0, 3),
+                     "contour_matched_fraction_aligned": round(score(best[1], best[2]), 3)})
+    return pd.DataFrame(rows)
 
 
 # ------------------------------------------------------------------ track summary
@@ -253,7 +298,7 @@ def baseline_loss_rate(b: pd.DataFrame, last_rank: int, s: FeatureSettings) -> d
 
 
 def event_feature_table(events: pd.DataFrame, b: pd.DataFrame, frames: pd.DataFrame, shifts: dict,
-                        contour: Contour, s: FeatureSettings) -> pd.DataFrame:
+                        contour: Contour, s: FeatureSettings, delta: pd.DataFrame | None = None) -> pd.DataFrame:
     crop = frames.set_index("rank")[["crop_top", "crop_left"]]
     rows = []
     sp = events[events["event"] == "split_candidate"]
@@ -264,7 +309,10 @@ def event_feature_table(events: pd.DataFrame, b: pd.DataFrame, frames: pd.DataFr
         dy, dx = shifts.get(a, (0.0, 0.0))
         y = float(e.event_y_px) + crop.loc[a, "crop_top"] + dy
         x = float(e.event_x_px) + crop.loc[a, "crop_left"] + dx
-        s_ev, d_ev = contour.project(y, x)
+        dd = delta.set_index("rank").loc[a] if delta is not None else None
+        y_ref = y - (float(dd["ddy"]) if dd is not None else 0.0)
+        x_ref = x - (float(dd["ddx"]) if dd is not None else 0.0)
+        s_ev, d_ev = contour.project(y_ref, x_ref)
         g = b[b["rank"] == a]
         dist = np.hypot(g["y_common"] - y, g["x_common"] - x) if len(g) else pd.Series(dtype=float)
         near = g[dist <= s.near_event_px]
@@ -272,6 +320,7 @@ def event_feature_table(events: pd.DataFrame, b: pd.DataFrame, frames: pd.DataFr
         rows.append({
             "rank_from": a, "rank_to": int(e.rank_to), "persistence": e.persistence,
             "min_gap_px": e.min_gap_px, "event_y_common": round(y, 1), "event_x_common": round(x, 1),
+            "event_y_ref": round(y_ref, 1), "event_x_ref": round(x_ref, 1),
             "event_s_px": round(s_ev, 1), "event_dist_to_ref_contour_px": round(d_ev, 1),
             "n_features_in_frame": len(g),
             "nearest_feature_px": round(float(dist.min()), 1) if len(g) else np.nan,
@@ -372,7 +421,8 @@ def figures(b: pd.DataFrame, trk: pd.DataFrame, ev: pd.DataFrame, null_all: dict
         plt.close(fig)
 
     longids = set(trk.loc[trk["n_detections"] >= 4, "track_id"])
-    d = b[b["track_id"].isin(longids)]
+    d_all = b[b["track_id"].isin(longids)]
+    d = d_all[~d_all["off_reference_contour"]]
     fig, ax = plt.subplots(figsize=(8, 6.5))
     cmap = plt.get_cmap("tab20")
     for t, g in d.groupby("track_id"):
@@ -384,7 +434,8 @@ def figures(b: pd.DataFrame, trk: pd.DataFrame, ev: pd.DataFrame, null_all: dict
     ax.invert_yaxis()
     ax.set_xlabel("position along reference contour, s (px; shortest path from topmost point of frame 1)")
     ax.set_ylabel("frame index (provisional order)")
-    ax.set_title("Bright features over time along the DNA (dot size ~ area; tracks of 4+ detections)", fontsize=9, loc="left")
+    ax.set_title(f"Bright features along the reference contour (dot size ~ area; tracks of 4+ detections; "
+                 f"{len(d_all) - len(d)} of {len(d_all)} detections off the contour not drawn)", fontsize=8, loc="left")
     ax.legend(fontsize=7, loc="lower right")
     ax.spines[["top", "right"]].set_visible(False)
     save(fig, "fig_feature_kymograph")
@@ -441,10 +492,11 @@ def run(outputs: Path, s: FeatureSettings) -> dict:
     b = common_positions(inp["bright"], frames, reg)
     b = link_features(b, s)
     contour = reference_contour(inp["phase2"], frames, 1)
-    b = add_contour_position(b, contour, s)
+    delta = refine_alignment(inp["phase2"], frames, shifts, contour)
+    b = add_contour_position(b, contour, s, delta)
     b["registration_reliable"] = b["rank"].map(lambda r: reliable.get(int(r), True))
     trk = summarise_tracks(b, last_rank, reliable, s)
-    ev = event_feature_table(events, b, frames, shifts, contour, s)
+    ev = event_feature_table(events, b, frames, shifts, contour, s, delta)
     base = baseline_loss_rate(b, last_rank, s)
     null_all = null_comparison(ev, b, inp["phase2"], frames, shifts, s) if len(ev) else {"n_events": 0}
     pers = ev[ev["persistence"] == "persistent"] if len(ev) else ev
@@ -452,10 +504,11 @@ def run(outputs: Path, s: FeatureSettings) -> dict:
     mech = mechanism_table(trk, ev, null_all, null_pers, base, s)
     out = outputs / "phase6"
     out.mkdir(parents=True, exist_ok=True)
-    cols = ["track_id", "rank", "filename", "feature_id", "x_common", "y_common", "s_px",
+    cols = ["track_id", "rank", "filename", "feature_id", "x_common", "y_common", "x_ref", "y_ref", "s_px",
             "dist_to_ref_contour_px", "off_reference_contour", "area_px", "relative_to_ridge_level",
             "radius_px", "peak_z", "gap_before", "registration_reliable", "label"]
     b[cols].round(2).to_csv(out / "feature_detections.csv", index=False)
+    delta.to_csv(out / "contour_alignment.csv", index=False)
     trk.to_csv(out / "feature_tracks.csv", index=False)
     ev.to_csv(out / "event_feature_association.csv", index=False)
     mech.to_csv(out / "mechanism_summary.csv", index=False)
