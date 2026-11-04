@@ -7,7 +7,7 @@ from pathlib import Path
 
 KNOWN_FIGS = {"fig_loss_time_map", "fig_contour_coverage_intensity_time", "fig_model_llr_vs_R", "fig_behaviour_classes",
               "fig_feature_kymograph", "fig_feature_size_brightness_time", "fig_feature_size_brightness_groups",
-              "fig_event_vs_random"}
+              "fig_event_vs_random", "fig_changepoint"}
 
 PAGE = r"""<!doctype html><html lang="tr"><head><meta charset="utf-8">
 <title>AFM DNA Analiz Görüntüleyici</title>
@@ -30,7 +30,7 @@ input[type=range]{width:100%}input[type=text],select{padding:7px;border-radius:8
 .warn{background:rgba(220,160,0,.15);border:1px solid rgba(220,160,0,.5);padding:8px 12px;border-radius:8px;margin-bottom:12px;font-size:13px}
 canvas{width:100%;height:260px;background:var(--card);border:1px solid var(--line);border-radius:12px}
 .k{opacity:.7}.scroll{max-height:70vh;overflow:auto}pre{white-space:pre-wrap;font:13px/1.5 ui-monospace,monospace}
-.figs img{width:100%;max-width:640px;border-radius:8px;border:1px solid var(--line);margin:6px 0}
+.figs img{width:100%;max-width:1100px;border-radius:8px;border:1px solid var(--line);margin:6px 0}
 </style></head><body>
 <header><b>AFM DNA Analiz Görüntüleyici</b><span>ön çalışma · ölçümler piksel cinsinden · hiçbir olay "kesin" değil</span></header>
 <nav id="nav"></nav><main>
@@ -49,6 +49,8 @@ canvas{width:100%;height:260px;background:var(--card);border:1px solid var(--lin
 <div class="tab" id="t_know"><div class="card"><input type="text" id="q" placeholder="ara (ör. DNase, persistence)" style="width:100%;margin-bottom:8px">
 <div class="warn">Hepsi "unverified". Orijinal makaleden kontrol etmeden yayına koyma.</div><div class="scroll"><table id="kn"></table></div></div></div>
 <div class="tab" id="t_time"><div class="warn">Yükseklik yok: elimizde yalnızca JPG yoğunluğu var, kalibre değil. Konum ve zaman bilgisi piksel ve kare sırası cinsinden; sıra geçici, zaman tahmini.</div>
+<div class="card" style="margin-bottom:12px"><div id="p8txt"></div></div><div class="figs" id="figs8"></div>
+<div class="card scroll" style="margin:12px 0"><b>Literatürle büyüklük sırası kıyası</b> <span class="k">(Abdelhady 2003, kitaplıkta DOĞRULANMADI; bizde enzim ekleme zamanı bilinmiyor, sonuç sayılmaz)</span><table id="lit"></table></div>
 <div class="card" style="margin-bottom:12px"><div id="p7txt"></div></div><div class="figs" id="figs7a"></div></div>
 <div class="tab" id="t_mech"><div class="warn">Hocanın üç mekanizma sorusu. Parlak özelliklerin ne olduğu (enzim mi dendrimer mi) bilinmiyor. Tek molekül, tek deney, kontrol yok: sayılar <b>tanımlayıcıdır</b>, hiçbir mekanizma bu veriyle doğrulanmış ya da çürütülmüş sayılmaz.</div>
 <div id="mechcards"></div><div class="card" style="margin:10px 0"><b>Parlak özelliklerin davranış sınıfları</b> <span class="k">(kimlik ataması değil)</span><table id="cls"></table></div><div class="figs" id="figs6"></div>
@@ -136,13 +138,19 @@ tbl(document.getElementById("evf"),D.p6.events,["rank_from","rank_to","persisten
 document.getElementById("figs6").innerHTML=Object.entries(D.p6.figs).map(([n,u])=>"<div><div class=k>"+n+"</div><img src='"+u+"'></div>").join("")}
 else document.getElementById("mechcards").innerHTML="<div class=card>Mekanizma sonuçları yok. Önce Terminal'de run_all.sh çalıştır.</div>";
 
-const CAP={fig_loss_time_map:"Kopma nerede, ne zaman: ilk 22 karede DNA konturu üzerindeki boşluklar (renk = ilk boşluk karesi, x = aday kopma, yanındaki sayı kare)",fig_contour_coverage_intensity_time:"Soldan sağa: kontur örtüşmesi ile süreklilik, DNA parlaklık seviyesi, soluk iskelet oranı (hepsi JPG yoğunluğu, yükseklik değil)",fig_model_llr_vs_R:"Olasılık modeli: kopma yerinin parlak özelliğe yakın / uzak olması, bağımsız modele göre (0'ın altı = bağımsızdan kötü)",fig_behaviour_classes:"Parlak özelliklerin davranış sınıfları (boyut, parlaklık, ömür)",fig_feature_kymograph:"Parlak özellikler DNA boyunca zamanla (nokta büyüklüğü = alan)",fig_feature_size_brightness_time:"Her izin boyutu ve göreli parlaklığı zamanla",fig_feature_size_brightness_groups:"İzlerin boyut-parlaklık dağılımı ve ömürleri",fig_event_vs_random:"Kopma yerleri ile rastgele DNA noktalarının parlak özelliğe uzaklığı"};
+const CAP={fig_loss_time_map:"Kopma nerede, ne zaman: ilk 22 karede DNA konturu üzerindeki boşluklar (renk = ilk boşluk karesi, x = aday kopma, yanındaki sayı kare)",fig_contour_coverage_intensity_time:"Soldan sağa: kontur örtüşmesi ile süreklilik, DNA parlaklık seviyesi, soluk iskelet oranı (hepsi JPG yoğunluğu, yükseklik değil)",fig_model_llr_vs_R:"Olasılık modeli: kopma yerinin parlak özelliğe yakın / uzak olması, bağımsız modele göre (0'ın altı = bağımsızdan kötü)",fig_behaviour_classes:"Parlak özelliklerin davranış sınıfları (boyut, parlaklık, ömür)",fig_feature_kymograph:"Parlak özellikler DNA boyunca zamanla (nokta büyüklüğü = alan)",fig_feature_size_brightness_time:"Her izin boyutu ve göreli parlaklığı zamanla",fig_feature_size_brightness_groups:"İzlerin boyut-parlaklık dağılımı ve ömürleri",fig_changepoint:"Kopma ne zaman: en uzun parça ve süreklilik serisinde kırılma noktası (kırmızı basamak, açık kırmızı = %95 aralık, noktalı çizgi = kalıcı kopma adayı), sağda 36 eşik ayarında kırılma noktası",fig_event_vs_random:"Kopma yerleri ile rastgele DNA noktalarının parlak özelliğe uzaklığı"};
 function figs(el,obj){el.innerHTML=Object.entries(obj).map(([n,u])=>"<div><div class=k>"+(CAP[n.replace(".png","")]||n)+"</div><img src='"+u+"'></div>").join("")}
 if(D.p7&&D.p7.figs){figs(document.getElementById("figs7a"),Object.fromEntries(Object.entries(D.p7.figs).filter(([n])=>/loss_time|coverage/.test(n))));
 document.getElementById("p7txt").innerHTML=(D.p7.summary||"").split("\n").filter(x=>x.trim()).map(x=>"<p>"+x.replace(/^[-#]+ ?/,"").replace(/\*\*(.+?)\*\*/g,"<b>$1</b>")+"</p>").join("");
 tbl(document.getElementById("cls"),D.p7.classes,["behaviour_class","n_tracks","median_area_px","median_relative_intensity","median_lifespan_frames"]);
 if(D.p7.mech.length){document.getElementById("mechcards").innerHTML=D.p7.mech.map(m=>"<div class=card style='margin-bottom:10px'><b>"+m.hypothesis+": "+m.hypothesis_tr+"</b><p><span class=k>Model sayıları:</span> "+m.model_numbers+"</p><p><span class=k>Okuma:</span> "+m.reading_tr+"</p></div>").join("")}
 figs(document.getElementById("figs6"),Object.fromEntries(Object.entries({...D.p6.figs,...D.p7.figs}).filter(([n])=>!/loss_time|coverage/.test(n))))}
+
+if(D.p8&&D.p8.summary){document.getElementById("p8txt").innerHTML=D.p8.summary.split("\n").filter(x=>x.trim()).map(x=>"<p>"+x.replace(/^[-#]+ ?/,"").replace(/\*\*(.+?)\*\*/g,"<b>$1</b>")+"</p>").join("");
+figs(document.getElementById("figs8"),D.p8.figs);
+const LT={source:"kaynak",what_tr:"ne",value:"değer",quote:"orijinal alıntı / not",verified:"durum"};
+const lt=document.getElementById("lit");const lc=["source","what_tr","value","quote","verified"];
+lt.innerHTML="<tr>"+lc.map(k=>"<th>"+LT[k]+"</th>").join("")+"</tr>"+D.p8.lit.map(r=>"<tr>"+lc.map(k=>"<td>"+V(r[k])+"</td>").join("")+"</tr>").join("")}
 go(0);
 </script></body></html>"""
 
@@ -220,8 +228,12 @@ def build(root):
     p7 = {"mech": _csv(p7d / "mechanism_model_summary.csv"), "classes": _csv(p7d / "behaviour_class_summary.csv"),
           "summary": (p7d / "summary_tr.md").read_text(encoding="utf-8") if (p7d / "summary_tr.md").exists() else "",
           "figs": {q.name: _data_uri(q) for q in sorted(p7d.glob("fig_*.png")) if q.stem in KNOWN_FIGS} if p7d.exists() else {}}
+    p8d = out / "phase8"
+    p8 = {"summary": (p8d / "summary_tr.md").read_text(encoding="utf-8") if (p8d / "summary_tr.md").exists() else "",
+          "lit": _csv(p8d / "literature_comparison.csv"),
+          "figs": {q.name: _data_uri(q) for q in sorted(p8d.glob("fig_*.png")) if q.stem in KNOWN_FIGS} if p8d.exists() else {}}
     figimg = {n: _data_uri(out / "phase5" / n) for n in figs}
-    data = {"p7": p7, "p6": p6, "img": img, "figimg": figimg, "frames": frames, "metrics": metrics, "events": _csv(out / "phase3" / "events.csv"),
+    data = {"p8": p8, "p7": p7, "p6": p6, "img": img, "figimg": figimg, "frames": frames, "metrics": metrics, "events": _csv(out / "phase3" / "events.csv"),
             "know": know, "figs": figs, "report": rep.read_text(encoding="utf-8") if rep.exists() else "",
             "raw": "../../data/raw/", "p2": "../phase2/", "p5": "../phase5/"}
     dest = out / "viewer"

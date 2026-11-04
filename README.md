@@ -22,7 +22,7 @@ cleaved by **DNase I** in the presence of **G4 PAMAM dendrimer**.
 
 ```
 config/project_config.ini   scale, time, segmentation settings (status: unknown / estimated / confirmed)
-src/afm_pipeline/           inventory, contact_sheet, order, config, segment, dna, corrections, phase2, tracking, phase3, phase4, phase5, phase6, phase7, knowledge, viewer
+src/afm_pipeline/           inventory, contact_sheet, order, config, segment, dna, corrections, phase2, tracking, phase3, phase4, phase5, phase6, phase7, phase8, knowledge, viewer
 annotations/                optional manual corrections.csv and annotation masks
 scripts/                    thin runners: 01_inventory ... 05_segment
 tests/                      pytest suite
@@ -55,6 +55,7 @@ Original images are opened read-only and never modified.
 5. Figures (PNG + PDF), CSV/JSON export, report (done: `python scripts/09_phase5.py`)
 6. Bright-feature tracking along the DNA contour, event-feature association, mechanism table H1/H2/H3 (done: `python scripts/13_phase6.py`)
 7. Contour intensity profile and gap map, behavioural classes of bright features, likelihood-model comparison of the three mechanisms (done: `python scripts/14_phase7.py`)
+8. Change-point analysis (when does the large step happen, 95% interval, 36-setting robustness, literature context) (done: `python scripts/15_phase8.py`)
 
 Planned validation: diagnostic overlays, manual correction, comparison with manual annotations,
 threshold sensitivity analysis.
