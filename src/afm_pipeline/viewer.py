@@ -5,6 +5,10 @@ import io
 import json
 from pathlib import Path
 
+KNOWN_FIGS = {"fig_loss_time_map", "fig_contour_coverage_intensity_time", "fig_model_llr_vs_R", "fig_behaviour_classes",
+              "fig_feature_kymograph", "fig_feature_size_brightness_time", "fig_feature_size_brightness_groups",
+              "fig_event_vs_random"}
+
 PAGE = r"""<!doctype html><html lang="tr"><head><meta charset="utf-8">
 <title>AFM DNA Analiz Görüntüleyici</title>
 <style>
@@ -211,11 +215,11 @@ def build(root):
     p6d = out / "phase6"
     p6 = {"mech": _csv(p6d / "mechanism_summary.csv"), "tracks": _csv(p6d / "feature_tracks.csv"),
           "events": _csv(p6d / "event_feature_association.csv"),
-          "figs": {q.name: _data_uri(q) for q in sorted(p6d.glob("fig_*.png"))} if p6d.exists() else {}}
+          "figs": {q.name: _data_uri(q) for q in sorted(p6d.glob("fig_*.png")) if q.stem in KNOWN_FIGS} if p6d.exists() else {}}
     p7d = out / "phase7"
     p7 = {"mech": _csv(p7d / "mechanism_model_summary.csv"), "classes": _csv(p7d / "behaviour_class_summary.csv"),
           "summary": (p7d / "summary_tr.md").read_text(encoding="utf-8") if (p7d / "summary_tr.md").exists() else "",
-          "figs": {q.name: _data_uri(q) for q in sorted(p7d.glob("fig_*.png"))} if p7d.exists() else {}}
+          "figs": {q.name: _data_uri(q) for q in sorted(p7d.glob("fig_*.png")) if q.stem in KNOWN_FIGS} if p7d.exists() else {}}
     figimg = {n: _data_uri(out / "phase5" / n) for n in figs}
     data = {"p7": p7, "p6": p6, "img": img, "figimg": figimg, "frames": frames, "metrics": metrics, "events": _csv(out / "phase3" / "events.csv"),
             "know": know, "figs": figs, "report": rep.read_text(encoding="utf-8") if rep.exists() else "",
