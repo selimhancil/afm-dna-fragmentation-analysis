@@ -60,6 +60,7 @@ Original images are opened read-only and never modified.
 10. Heading 2: do the bright features fall into populations? Mixture test, within/between-track consistency, associations (done: `python scripts/17_phase6c.py`)
 11. Heading 3: height profile in ASSUMED nm from an editable `[height]` setting, with a plausibility check and optional DNA-height anchor (done: `python scripts/18_heights.py`)
 12. Heading 4: contour length over time, estimator bias measured on synthetic curves, plasmid-length scale cross-check (done: `python scripts/19_lengths.py`)
+13. Heading 5: when and where the DNA breaks, relative to the change point, with a registration-free cut fraction (done: `python scripts/20_where_when.py`)
 
 Planned validation: diagnostic overlays, manual correction, comparison with manual annotations,
 threshold sensitivity analysis.

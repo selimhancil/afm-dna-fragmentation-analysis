@@ -5,7 +5,7 @@ import io
 import json
 from pathlib import Path
 
-KNOWN_FIGS = {"fig_contour_length_time", "fig_height_profile", "fig_feature_populations", "fig_track_montage", "fig_pair_spacing", "fig_loss_time_map", "fig_contour_coverage_intensity_time", "fig_model_llr_vs_R", "fig_behaviour_classes",
+KNOWN_FIGS = {"fig_when_where", "fig_contour_length_time", "fig_height_profile", "fig_feature_populations", "fig_track_montage", "fig_pair_spacing", "fig_loss_time_map", "fig_contour_coverage_intensity_time", "fig_model_llr_vs_R", "fig_behaviour_classes",
               "fig_feature_kymograph", "fig_feature_size_brightness_time", "fig_feature_size_brightness_groups",
               "fig_event_vs_random", "fig_changepoint"}
 
@@ -70,11 +70,12 @@ canvas{width:100%;height:260px;background:var(--card);border:1px solid var(--lin
 <div class="tab" id="t_h2"><div class="card"><div id="p6ctxt"></div></div><div class="card"><b>Topluluk özeti</b><div class="scroll" id="p6cgrp"></div></div><div class="card"><b>Her özelliğin boyut ve parlaklığı</b><div class="scroll" id="p6cdesc" style="max-height:50vh"></div></div><div class="figs" id="figs6c"></div></div>
 <div class="tab" id="t_h3"><div class="card" style="border-left:4px solid #c33"><b>Bu yükseklikler VARSAYIMDIR, ölçüm değildir.</b><div id="p6dtxt"></div></div><div class="card"><b>Parlak özelliklerin varsayımsal yüksekliği</b><div class="scroll" id="p6dfeat" style="max-height:45vh"></div></div><div class="card"><b>DNA yüksekliği, kare kare</b><div class="scroll" id="p6dfr" style="max-height:45vh"></div></div><div class="figs" id="figs6d"></div></div>
 <div class="tab" id="t_h4"><div class="card"><div id="p6etxt"></div></div><div class="card"><b>Kare kare uzunluk (düzeltilmiş piksel; nm tahmini ölçekle)</b><div class="scroll" id="p6efr" style="max-height:50vh"></div></div><div class="figs" id="figs6e"></div></div>
+<div class="tab" id="t_h5"><div class="card"><div id="p6ftxt"></div></div><div class="card"><b>Her kopma adayı: zaman ve yer</b><div class="scroll" id="p6fev" style="max-height:50vh"></div></div><div class="figs" id="figs6f"></div></div>
 <div class="tab" id="t_fig"><div class="figs" id="figs"></div></div>
 <div class="tab" id="t_rep"><div class="card"><pre id="rep"></pre></div></div>
 </main><script>
 const D=__DATA__;
-const tabs=[["frames","Kareler"],["h1","1. Parlak özellik takibi"],["h2","2. Dendrimer–enzim ayrımı"],["h3","3. Yükseklik profili"],["h4","4. Kontur uzunluğu"],["events","Aday olaylar"],["know","Kitaplık"],["time","Zaman ve yer"],["mech","Mekanizmalar"],["fix","Düzeltme"],["fig","Grafikler"],["rep","Rapor"]];
+const tabs=[["frames","Kareler"],["h1","1. Parlak özellik takibi"],["h2","2. Dendrimer–enzim ayrımı"],["h3","3. Yükseklik profili"],["h4","4. Kontur uzunluğu"],["h5","5. Kopma: ne zaman, nerede"],["events","Aday olaylar"],["know","Kitaplık"],["time","Zaman ve yer"],["mech","Mekanizmalar"],["fix","Düzeltme"],["fig","Grafikler"],["rep","Rapor"]];
 const nav=document.getElementById("nav");
 tabs.forEach(([k,n],i)=>{const b=document.createElement("button");b.textContent=n;b.onclick=()=>show(k);b.id="b_"+k;nav.appendChild(b)});
 function show(k){tabs.forEach(([t])=>{document.getElementById("t_"+t).classList.toggle("on",t==k);document.getElementById("b_"+t).classList.toggle("on",t==k)})}
@@ -159,6 +160,9 @@ figs(document.getElementById("figs6d"),D.p6d.figs)}
 if(D.p6e){document.getElementById("p6etxt").innerHTML=(D.p6e.summary||"").split("\n").filter(x=>x.trim()).map(x=>"<p>"+x.replace(/^[-#]+ ?/,"").replace(/\*\*(.+?)\*\*/g,"<b>$1</b>")+"</p>").join("");
 tbl(document.getElementById("p6efr"),D.p6e.frames,["rank","n_pieces","total_corrected_px","largest_corrected_px","total_nm_estimated_scale","largest_nm_estimated_scale","length_below_min_not_counted_px"]);
 figs(document.getElementById("figs6e"),D.p6e.figs)}
+if(D.p6f){document.getElementById("p6ftxt").innerHTML=(D.p6f.summary||"").split("\n").filter(x=>x.trim()).map(x=>"<p>"+x.replace(/^[-#]+ ?/,"").replace(/\*\*(.+?)\*\*/g,"<b>$1</b>")+"</p>").join("");
+tbl(document.getElementById("p6fev"),D.p6f.events,["rank_from","rank_to","persistence","n_new_pieces","old_length_px","new_lengths_px","cut_fraction_shortest_piece","conserved","contour_position_reliable","relative_to_change_point"]);
+figs(document.getElementById("figs6f"),D.p6f.figs)}
 if(D.p7&&D.p7.figs){figs(document.getElementById("figs7a"),Object.fromEntries(Object.entries(D.p7.figs).filter(([n])=>/loss_time|coverage/.test(n))));
 document.getElementById("p7txt").innerHTML=(D.p7.summary||"").split("\n").filter(x=>x.trim()).map(x=>"<p>"+x.replace(/^[-#]+ ?/,"").replace(/\*\*(.+?)\*\*/g,"<b>$1</b>")+"</p>").join("");
 tbl(document.getElementById("cls"),D.p7.classes,["behaviour_class","n_tracks","median_area_px","median_relative_intensity","median_lifespan_frames"]);
@@ -263,12 +267,16 @@ def build(root):
     p6e = {"summary": (p6ed / "summary_tr.md").read_text(encoding="utf-8") if (p6ed / "summary_tr.md").exists() else "",
            "frames": _csv(p6ed / "length_by_frame.csv"),
            "figs": {q.name: _data_uri(q) for q in sorted(p6ed.glob("fig_*.png")) if q.stem in KNOWN_FIGS} if p6ed.exists() else {}}
+    p6fd = out / "where_when"
+    p6f = {"summary": (p6fd / "summary_tr.md").read_text(encoding="utf-8") if (p6fd / "summary_tr.md").exists() else "",
+           "events": _csv(p6fd / "split_candidates_when_where.csv"),
+           "figs": {q.name: _data_uri(q) for q in sorted(p6fd.glob("fig_*.png")) if q.stem in KNOWN_FIGS} if p6fd.exists() else {}}
     p8d = out / "phase8"
     p8 = {"summary": (p8d / "summary_tr.md").read_text(encoding="utf-8") if (p8d / "summary_tr.md").exists() else "",
           "lit": _csv(p8d / "literature_comparison.csv"),
           "figs": {q.name: _data_uri(q) for q in sorted(p8d.glob("fig_*.png")) if q.stem in KNOWN_FIGS} if p8d.exists() else {}}
     figimg = {n: _data_uri(out / "phase5" / n) for n in figs}
-    data = {"p6e": p6e, "p6d": p6d, "p6c": p6c, "p6b": p6b, "p8": p8, "p7": p7, "p6": p6, "img": img, "figimg": figimg, "frames": frames, "metrics": metrics, "events": _csv(out / "phase3" / "events.csv"),
+    data = {"p6f": p6f, "p6e": p6e, "p6d": p6d, "p6c": p6c, "p6b": p6b, "p8": p8, "p7": p7, "p6": p6, "img": img, "figimg": figimg, "frames": frames, "metrics": metrics, "events": _csv(out / "phase3" / "events.csv"),
             "know": know, "figs": figs, "report": rep.read_text(encoding="utf-8") if rep.exists() else "",
             "raw": "../../data/raw/", "p2": "../phase2/", "p5": "../phase5/"}
     dest = out / "viewer"
