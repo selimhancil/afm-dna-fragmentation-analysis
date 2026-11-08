@@ -17,5 +17,6 @@ python scripts/19_lengths.py     # heading 4: contour length over time with esti
 python scripts/20_where_when.py  # heading 5: when and where the DNA breaks (candidates)
 python scripts/21_mechanisms.py  # heading 6: three-mechanism comparison with the strengthened tracks
 python scripts/22_summary.py     # overview of the six requests + supervisor summary and email
+python scripts/23_environment.py  # library versions of this run (explains tiny cross-machine differences)
 python scripts/12_viewer.py      # viewer page
 echo "DONE. Results are in outputs/ (report: outputs/phase5/report.md)"

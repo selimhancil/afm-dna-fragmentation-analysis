@@ -63,6 +63,7 @@ Original images are opened read-only and never modified.
 13. Heading 5: when and where the DNA breaks, relative to the change point, with a registration-free cut fraction (done: `python scripts/20_where_when.py`)
 14. Heading 6: three-mechanism comparison with three feature sets, Bayes factors, fate check, spacing test (done: `python scripts/21_mechanisms.py`)
 15. Overview of the six requests, short supervisor summary and reply email, all generated from the outputs (done: `python scripts/22_summary.py`)
+16. Environment record: library versions of each run, so tiny numeric differences between machines can be traced (done: `python scripts/23_environment.py`; on 4 Nov 2026 the cloud run used numpy 2.5.3 / pandas 3.0.5 and the Mac run numpy 2.5.4 / pandas 3.1.0, and pair spacings differed by 0.1-0.7 px with identical verdict counts; the cause is not proven)
 
 Planned validation: diagnostic overlays, manual correction, comparison with manual annotations,
 threshold sensitivity analysis.
