@@ -485,14 +485,14 @@ def summary_text(cmp: pd.DataFrame, trk: pd.DataFrame, spacing: pd.DataFrame, n_
     b, a = cmp.iloc[0], cmp.iloc[1]
     conf = trk["confidence"].value_counts().to_dict()
     lines = [
-        "## Başlık 1: parlak özellik takibi (güçlendirilmiş, Türkçe özet)",
+        "## Heading 1: bright-feature tracking (strengthened, English summary)",
         "",
-        f"- Güçlü tespitlerle iz sayısı {int(b.n_tracks)} idi, bunun {int(b.tracks_with_1_detection)} tanesi tek karedeydi. "
-        f"Zayıf ama tutarlı tepeleri de izleyen histerezisli takip ve parça birleştirme ({n_merged} birleştirme) sonrası "
-        f"iz sayısı {int(a.n_tracks)}, tek karelik iz {int(a.tracks_with_1_detection)}, en az {6} kare süren iz "
-        f"{int(b.tracks_with_6plus_detections)} → {int(a.tracks_with_6plus_detections)}.",
-        f"- İz güveni: yüksek {conf.get('high', 0)}, orta {conf.get('medium', 0)}, düşük {conf.get('low', 0)}. "
-        "Zayıf tespitle uzatılan görünümler 'recovered' diye işaretli; resim şeridinde sarı kesikli daire.",
+        f"- With strong detections only there were {int(b.n_tracks)} tracks, of which {int(b.tracks_with_1_detection)} lasted a single frame. "
+        f"After hysteresis tracking that also follows weak but consistent peaks, and fragment merging ({n_merged} merges), "
+        f"there are {int(a.n_tracks)} tracks, {int(a.tracks_with_1_detection)} single-frame tracks, and tracks lasting at least {6} frames "
+        f"went {int(b.tracks_with_6plus_detections)} → {int(a.tracks_with_6plus_detections)}.",
+        f"- Track confidence: high {conf.get('high', 0)}, medium {conf.get('medium', 0)}, low {conf.get('low', 0)}. "
+        "Appearances extended with a weak detection are marked 'recovered'; yellow dashed circle in the photo strip.",
     ]
     if len(spacing):
         ok = spacing[spacing["n_frames"] >= 5]
@@ -500,20 +500,20 @@ def summary_text(cmp: pd.DataFrame, trk: pd.DataFrame, spacing: pd.DataFrame, n_
         n_f = int(ok["verdict"].isin(["conflicting_measures", "undetermined"]).sum())
         n_k = len(ok) - n_c - n_f
         lines += [
-            f"- Özellikler arası DNA boyunca mesafe: {len(ok)} çift en az 5 karede birlikte görünüyor; "
-            f"{n_k} çiftte mesafe sabit, {n_c} çiftte iki ölçü de değişim gösteriyor, {n_f} çiftte ölçüler çelişiyor veya belirsiz. "
-            "İki ölçü birleştirildi: hizalı karelerde (≈1–22) referans kontur üzerindeki konum farkı (rota sabit), yeterli kare yoksa her karenin kendi iskeletindeki en kısa yol. "
-            "Yol değişimi: halka biçimli molekülde halka açılıp kapanınca en kısa yol ters yönden dolanır ve mesafe yüzlerce piksel zıplar; "
-            "bu özelliklerin kayması değildir, kayma sayılmadı. Ölçüler çelişirse karar verilmez, çift 'çelişkili' kalır. Gerçek değişim için hem en az 8 px hem ortalama mesafenin %10'u kadar değişim ve "
-            "doğrusal eğim p<0.01 gerekir. Bu ölçü genel hizalamadan bağımsızdır."]
+            f"- Distance between features along the DNA: {len(ok)} pairs are seen together in at least 5 frames; "
+            f"the distance is constant in {n_k} pairs, both measures show a change in {n_c} pairs, and the measures conflict or are undetermined in {n_f} pairs. "
+            "The two measures were combined: in aligned frames (≈1–22) the position difference on the reference contour (route fixed), otherwise the shortest path on each frame's own skeleton. "
+            "Path change: in a ring-shaped molecule, when the ring opens or closes the shortest path goes around the other way and the distance jumps by hundreds of pixels; "
+            "this is not a movement of the features and was not counted as movement. If the measures conflict no decision is made and the pair stays 'conflicting'. A real change requires both a change of at least 8 px and of 10% of the mean distance, and "
+            "a linear-slope p<0.01. This measure is independent of the global alignment."]
     if null:
-        lines += [f"- Kontrol: DNA üzerinde rastgele {null['n_fake']} noktadan başlatılan sahte izler aynı kuralla "
-                  f"ortalama {null['fake_mean_recovered']:.1f} zayıf tepe topladı; gerçek izler ortalama "
-                  f"{null['real_mean_recovered']:.1f}. En az 5 zayıf tepe toplayan iz oranı: sahte "
-                  f"%{100 * null['fake_share_with_6plus']:.0f}, gerçek %{100 * null['real_share_with_6plus']:.0f}. "
-                  "Fark büyükse zayıf tepeler DNA'nın her yerinde değil, gerçek özelliklerin çevresindedir."]
-    lines += ["- Özelliklerin kimliği hâlâ bilinmiyor; hepsi 'parlak özellik (aday bağlı parçacık)'. "
-              "Her izin fotoğraf şeridi fig_track_montage'da, gözle kontrol için."]
+        lines += [f"- Control: fake tracks started from {null['n_fake']} random points on the DNA collected "
+                  f"{null['fake_mean_recovered']:.1f} weak peaks on average under the same rule; real tracks collected "
+                  f"{null['real_mean_recovered']:.1f}. Share of tracks collecting at least 5 weak peaks: fake "
+                  f"{100 * null['fake_share_with_6plus']:.0f}%, real {100 * null['real_share_with_6plus']:.0f}%. "
+                  "If the difference is large, the weak peaks are around real features, not everywhere on the DNA."]
+    lines += ["- The identity of the features is still unknown; all are 'bright feature (candidate bound particle)'. "
+              "A photo strip of every track is in fig_track_montage, for visual checking."]
     return "\n".join(lines) + "\n"
 
 
@@ -559,7 +559,7 @@ def run(outputs: Path, data_dir: Path, config: Path = cfgmod.DEFAULT_CONFIG_PATH
     cmp.to_csv(out / "track_comparison.csv", index=False)
     series.to_csv(out / "pair_spacing_series.csv", index=False)
     summ.to_csv(out / "pair_spacing_summary.csv", index=False)
-    (out / "summary_tr.md").write_text(summary_text(cmp, trk, summ, n_merged, null), encoding="utf-8")
+    (out / "summary.md").write_text(summary_text(cmp, trk, summ, n_merged, null), encoding="utf-8")
     (out / "parameters.json").write_text(json.dumps({
         "hysteresis_settings": asdict(h), "merged_fragments": n_merged, "null_control": null,
         "notes": "features unidentified; recovered detections are weak peaks following a strong seed; "

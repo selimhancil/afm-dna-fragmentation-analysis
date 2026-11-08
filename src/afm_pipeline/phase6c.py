@@ -189,38 +189,38 @@ def group_summary(d: pd.DataFrame, labels: list[int] | None) -> pd.DataFrame:
 
 
 def summary_text(mix: dict, icc: dict, assoc: pd.DataFrame, groups: pd.DataFrame, n_tracks: int) -> str:
-    L = ["## Başlık 2: dendrimer – enzim ayrımı (Türkçe özet)", ""]
-    L.append(f"- Analize giren iz sayısı: {n_tracks} (en az 3 güçlü tespiti olan izler).")
+    L = ["## Heading 2: dendrimer vs enzyme discrimination (English summary)", ""]
+    L.append(f"- Number of tracks in the analysis: {n_tracks} (tracks with at least 3 strong detections).")
     if "p_bootstrap" in mix:
         pv = mix["p_bootstrap"]
         two = pv < 0.05
-        verdict = ("iki topluluk, tek topluluktan anlamlı biçimde daha iyi açıklıyor" if two else
-                   "SINIRDA: iki topluluk için kanıt zayıf, kesin söylenemez (tek topluluk dışlanamaz ve iki topluluk da dışlanamaz)"
-                   if pv < 0.10 else "iki topluluk gerekçesi yok, tek topluluk yeterli")
-        L.append(f"- Boyut ve parlaklık iki ayrı topluluğa bölünüyor mu? Bootstrap olasılık oranı testi p = {pv:.3f} "
-                 f"(farklı rastgele tohumlarla {mix.get('p_range', [pv, pv])[0]}–{mix.get('p_range', [pv, pv])[1]}) → {verdict}.")
+        verdict = ("two populations explain the data significantly better than one" if two else
+                   "BORDERLINE: evidence for two populations is weak, no firm statement (neither one population nor two can be excluded)"
+                   if pv < 0.10 else "no justification for two populations, one population is enough")
+        L.append(f"- Do size and brightness split into two separate populations? Bootstrap likelihood-ratio test p = {pv:.3f} "
+                 f"(with different random seeds {mix.get('p_range', [pv, pv])[0]}–{mix.get('p_range', [pv, pv])[1]}) → {verdict}.")
         if two:
-            L.append("  Topluluklar (A küçük, B büyük): " + "; ".join(
-                f"{r.population}: {int(r.n_tracks)} iz, medyan alan {r.median_area_px:.0f} px, parlaklık {r.median_relative_intensity:.2f}×"
+            L.append("  Populations (A small, B large): " + "; ".join(
+                f"{r.population}: {int(r.n_tracks)} tracks, median area {r.median_area_px:.0f} px, brightness {r.median_relative_intensity:.2f}×"
                 for r in groups.itertuples()) + ".")
     if icc.get("icc") is not None:
-        L.append(f"- Her özellik kendi içinde tutarlı mı? Sınıf içi korelasyon (ICC) = {icc['icc']:.2f} "
-                 f"({icc['n_tracks']} iz; izler arası sapma {icc['between_sd_log']:.2f}, iz içi sapma {icc['within_sd_log']:.2f}, log alan). "
-                 "1'e yakın ise her özelliğin kendine ait sabit bir boyutu var demektir.")
+        L.append(f"- Is each feature consistent within itself? Intraclass correlation (ICC) = {icc['icc']:.2f} "
+                 f"({icc['n_tracks']} tracks; between-track SD {icc['between_sd_log']:.2f}, within-track SD {icc['within_sd_log']:.2f}, log area). "
+                 "Close to 1 means each feature has its own fixed size.")
     ai = assoc[(assoc.x == "log_area") & (assoc.y == "median_relative_intensity")]
     if len(ai) and ai.iloc[0].spearman_rho > 0.8:
-        L.append(f"- Dikkat: alan ile parlaklık neredeyse aynı şeyi ölçüyor (ρ = {ai.iloc[0].spearman_rho}); "
-                 "eşikleme büyük özelliği hem geniş hem parlak gösterir. İki topluluk bu yüzden fiilen tek eksendir (büyüklük).")
-    L.append("- İzler bağımsız parçacık sayılmamalı: aynı fiziksel parçacık farklı kare aralıklarında ayrı iz olabilir "
-             "ve n küçüktür; p değeri bu yüzden iyimser olabilir.")
+        L.append(f"- Caution: area and brightness measure almost the same thing (ρ = {ai.iloc[0].spearman_rho}); "
+                 "thresholding makes a large feature look both wide and bright. The two populations are therefore effectively a single axis (size).")
+    L.append("- Tracks should not be treated as independent particles: the same physical particle can be a separate track in different frame ranges "
+             "and n is small; the p value may therefore be optimistic.")
     for r in assoc.itertuples():
         if r.p_value < 0.05 and not (r.x == "log_area" and r.y == "median_relative_intensity"):
-            L.append(f"- Anlamlı ilişki: {r.x} ile {r.y} arasında Spearman ρ = {r.spearman_rho} (n={r.n}, p={r.p_value}).")
-    L += ["- Bu ayrım yalnızca tanımlayıcıdır: topluluk A/B hangisinin enzim, hangisinin dendrimer olduğunu söylemez. "
-          "G4 PAMAM (~14 kDa) ve DNaz I (~31 kDa) AFM'de tipik olarak benzer boyutta toplar görünür; "
-          "görünen genişlik uç şekli ve JPG parlaklığı ile belirlenir, gerçek yükseklik yoktur.",
-          "- Kimliği belirlemek için gereken: ham AFM dosyaları (yükseklik nm), yalnızca enzim ve yalnızca polimer kontrol görüntüleri, "
-          "veya etiketli (örneğin enzimi işaretli) bir deney."]
+            L.append(f"- Significant association: Spearman ρ = {r.spearman_rho} between {r.x} and {r.y} (n={r.n}, p={r.p_value}).")
+    L += ["- This split is only descriptive: population A/B does not say which is the enzyme and which is the dendrimer. "
+          "G4 PAMAM (~14 kDa) and DNase I (~31 kDa) typically look like blobs of similar size in AFM; "
+          "the apparent width is set by tip shape and JPG brightness, and there is no real height.",
+          "- Needed to identify them: raw AFM files (height in nm), control images with enzyme only and polymer only, "
+          "or a labelled experiment (for example with the enzyme tagged)."]
     return "\n".join(L) + "\n"
 
 
@@ -284,7 +284,7 @@ def run(outputs: Path, s: DiscSettings | None = None) -> dict:
     d.round(3).to_csv(out / "feature_descriptors.csv", index=False)
     groups.to_csv(out / "population_summary.csv", index=False)
     assoc.to_csv(out / "associations.csv", index=False)
-    (out / "summary_tr.md").write_text(summary_text(mix, icc, assoc, groups, len(d)), encoding="utf-8")
+    (out / "summary.md").write_text(summary_text(mix, icc, assoc, groups, len(d)), encoding="utf-8")
     (out / "parameters.json").write_text(json.dumps({
         "settings": asdict(s), "mixture": {k: v for k, v in mix.items() if k != "labels"}, "icc": icc,
         "notes": "descriptive grouping only; strong detections only; no identification as enzyme or dendrimer"},

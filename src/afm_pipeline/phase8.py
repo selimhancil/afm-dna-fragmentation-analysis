@@ -161,20 +161,20 @@ def literature_table(evidence_csv: Path, our: dict, persistent_ranks: list[int])
     if not evidence_csv.is_file():
         return pd.DataFrame()
     ev = pd.read_csv(evidence_csv).set_index("evidence_id")
-    want = [("E006", "çıplak DNA: bozunma başlangıcı"), ("E007", "çıplak DNA: tam parçalanma"),
-            ("E010", "G4:DNA 0.5:1 ve 1:1: bozunma başlangıcı"), ("E008", "ömür (çıplak / 0.5:1)"),
-            ("E009", "ömür (1:1)")]
+    want = [("E006", "naked DNA: onset of degradation"), ("E007", "naked DNA: complete fragmentation"),
+            ("E010", "G4:DNA 0.5:1 and 1:1: onset of degradation"), ("E008", "lifetime (naked / 0.5:1)"),
+            ("E009", "lifetime (1:1)")]
     rows = []
     for eid, label in want:
         if eid in ev.index:
             r = ev.loc[eid]
-            rows.append({"source": "Abdelhady 2003 (kitaplık, DOĞRULANMADI)", "evidence_id": eid, "what_tr": label,
+            rows.append({"source": "Abdelhady 2003 (library, NOT VERIFIED)", "evidence_id": eid, "what": label,
                          "value": f"{r['value']} {r['unit']}", "quote": r["quote"], "verified": r["verified"]})
-    rows.append({"source": "bizim seri (tahmini)", "evidence_id": "", "what_tr": "büyük basamak (en uzun parça)",
-                 "value": f"kare {our['change_point_rank']} (aralık {our['ci95_rank_low']}-{our['ci95_rank_high']}), "
-                          f"tahmini {our['time_range_min_estimated']} dk",
-                 "quote": f"kalıcı kopma adayı kareleri: {persistent_ranks}",
-                 "verified": "tahmin; DNase I ekleme zamanı bilinmiyor"})
+    rows.append({"source": "our series (estimated)", "evidence_id": "", "what": "main step (longest piece)",
+                 "value": f"frame {our['change_point_rank']} (interval {our['ci95_rank_low']}-{our['ci95_rank_high']}), "
+                          f"estimated {our['time_range_min_estimated']} min",
+                 "quote": f"persistent break-candidate frames: {persistent_ranks}",
+                 "verified": "estimate; DNase I addition time unknown"})
     return pd.DataFrame(rows)
 
 
@@ -182,23 +182,23 @@ def summary_text(res: dict, sens_sum: dict, persistent_ranks: list[int]) -> str:
     a = res["largest_object_px"]
     b = res["continuity_fraction"]
     lines = [
-        "## Faz 8: kopma ne zaman? (kırılma noktası analizi, Türkçe özet)",
+        "## Phase 8: when does the DNA break? (change-point analysis, English summary)",
         "",
-        f"- En uzun parça serisinde en iyi tek basamak **kare {a['change_point_rank']}** civarında "
-        f"(%95 bootstrap aralığı kare {a['ci95_rank_low']} ile {a['ci95_rank_high']}); düzey {a['level_before']:.0f} px'ten {a['level_after']:.0f} px'e. "
-        f"Süreklilik oranı için kare {b['change_point_rank']} (aralık {b['ci95_rank_low']}-{b['ci95_rank_high']}).",
-        f"- İki basamaklı model: kare {a['two_step_rank_1']} ve kare {a['two_step_rank_2']} civarında basamak, düzeyler "
-        f"{a['two_step_levels'][0]:.0f} → {a['two_step_levels'][1]:.0f} → {a['two_step_levels'][2]:.0f} px. İki basamağın tek basamağa göre "
-        f"BIC üstünlüğü {a['delta_bic_two_steps_vs_one_step']:.1f} ({'belirgin değil, ikisi ayırt edilemiyor' if a['delta_bic_two_steps_vs_one_step'] < 6 else 'belirgin'}); "
-        f"tek basamağın sabit modele göre BIC farkı {a['delta_bic_one_step_vs_constant']:.0f} (negatif = basamak çok daha iyi).",
-        f"- 36 eşik ayarında aynı kırılma noktası: ortanca kare {sens_sum['median']:.0f}, aralık {sens_sum['min']}-{sens_sum['max']}; "
-        f"ayarların %{100 * sens_sum['share_within_5']:.0f}'i ana sonuca ±5 kare içinde.",
-        f"- Tahmini zaman aralığı: {a['time_range_min_estimated']} dakika (31 sn/tarama varsayımı; tekrarlanan taramalar yüzünden gerçek zaman bilinmiyor).",
-        f"- Kalıcı kopma adayı kareleri: {persistent_ranks}.",
-        "- Literatür karşılaştırması (Abdelhady 2003, kitaplıkta doğrulanmamış): o çalışmada süre enzim eklendikten sonra ölçülüyor; "
-        "bizde enzim ekleme zamanı bilinmediği için bu yalnızca büyüklük sırası kıyasıdır, sonuç sayılmaz.",
-        "- Seri gürültülü: tek karedeki değerlere güvenilmez (ilk 49 karede en uzun parça defalarca düşüp yeniden yükseliyor). "
-        "Basamak, bu dalgalanmanın üzerindeki kalıcı düşüşü yakalıyor.",
+        f"- In the longest-piece series the best single step is around **frame {a['change_point_rank']}** "
+        f"(95% bootstrap interval frame {a['ci95_rank_low']} to {a['ci95_rank_high']}); level from {a['level_before']:.0f} px to {a['level_after']:.0f} px. "
+        f"For the continuity fraction, frame {b['change_point_rank']} (interval {b['ci95_rank_low']}-{b['ci95_rank_high']}).",
+        f"- Two-step model: steps around frame {a['two_step_rank_1']} and frame {a['two_step_rank_2']}, levels "
+        f"{a['two_step_levels'][0]:.0f} → {a['two_step_levels'][1]:.0f} → {a['two_step_levels'][2]:.0f} px. BIC advantage of two steps "
+        f"over one step {a['delta_bic_two_steps_vs_one_step']:.1f} ({'not clear, the two cannot be told apart' if a['delta_bic_two_steps_vs_one_step'] < 6 else 'clear'}); "
+        f"BIC difference of one step versus the constant model {a['delta_bic_one_step_vs_constant']:.0f} (negative = the step is much better).",
+        f"- The same change point across 36 threshold settings: median frame {sens_sum['median']:.0f}, range {sens_sum['min']}-{sens_sum['max']}; "
+        f"{100 * sens_sum['share_within_5']:.0f}% of the settings are within ±5 frames of the main result.",
+        f"- Estimated time range: {a['time_range_min_estimated']} minutes (31 s/scan assumed; the real time is unknown because of repeated scans).",
+        f"- Persistent break-candidate frames: {persistent_ranks}.",
+        "- Literature comparison (Abdelhady 2003, not verified in the library): in that study the time is measured after the enzyme is added; "
+        "since our enzyme addition time is unknown, this is only an order-of-magnitude comparison and not a result.",
+        "- The series is noisy: single-frame values cannot be trusted (in the first 49 frames the longest piece drops and rises again repeatedly). "
+        "The step captures the lasting drop above this fluctuation.",
     ]
     return "\n".join(lines) + "\n"
 
@@ -270,7 +270,7 @@ def run(outputs: Path, knowledge: Path, n_boot: int = 1000) -> dict:
     pd.concat([r["models"].assign(series=c) for c, r in res.items()]).to_csv(out / "model_comparison_changepoint.csv", index=False)
     sens_cp.to_csv(out / "changepoint_sensitivity.csv", index=False)
     lit.to_csv(out / "literature_comparison.csv", index=False)
-    (out / "summary_tr.md").write_text(summary_text(res, sens_sum, persistent), encoding="utf-8")
+    (out / "summary.md").write_text(summary_text(res, sens_sum, persistent), encoding="utf-8")
     (out / "parameters.json").write_text(json.dumps({
         "min_segment_frames": MIN_SEG, "bootstrap_block_frames": BLOCK, "n_bootstrap": n_boot,
         "sensitivity_summary": sens_sum, "persistent_split_ranks": persistent,

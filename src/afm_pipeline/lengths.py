@@ -80,8 +80,8 @@ def bias_summary(b: pd.DataFrame) -> dict:
     lo, hi = np.percentile(r, [2.5, 97.5])
     return {"n_curves": int(len(r)), "mean_ratio": float(r.mean()), "sd_ratio": float(r.std(ddof=1)),
             "ratio_95_low": float(lo), "ratio_95_high": float(hi),
-            "reading": ("piksel zinciri uzunluğu gerçek uzunluğu ortalama %%%.1f %s tahmin ediyor"
-                        % (abs(r.mean() - 1) * 100, "fazla" if r.mean() > 1 else "eksik"))}
+            "reading": ("the pixel-chain length %s the true length by %.1f%% on average"
+                        % ("overestimates" if r.mean() > 1 else "underestimates", abs(r.mean() - 1) * 100))}
 
 
 def pieces(skel: np.ndarray, min_px: int, small: list | None = None) -> list[float]:
@@ -185,33 +185,33 @@ def figures(df: pd.DataFrame, frag: pd.DataFrame, sc: dict, out: Path):
 def summary_text(bias: dict, sc: dict, df: pd.DataFrame, tr_total: dict, tr_largest: dict) -> str:
     a, z = df.iloc[0], df.iloc[-1]
     rho_u = stats.spearmanr(df["rank"], df["length_below_min_not_counted_px"])
-    L = ["## Başlık 4: kontur uzunluğunun zamanla değişimi (Türkçe özet)", "",
-         f"- Ölçüm yöntemi sapması (sahte eğrilerle, {bias['n_curves']} eğri): {bias['reading']} "
-         f"(%95 aralığı {bias['ratio_95_low']:.3f}–{bias['ratio_95_high']:.3f}). Tüm uzunluklar bu sapma için düzeltilmiş ve ham olarak ayrıca verilmiştir.",
-         f"- İlk karede en uzun parça (düzeltilmiş) {a.largest_corrected_px:.0f} px, toplam DNA {a.total_corrected_px:.0f} px; "
-         f"son karede en uzun {z.largest_corrected_px:.0f} px, toplam {z.total_corrected_px:.0f} px; parça sayısı {int(a.n_pieces)} → {int(z.n_pieces)}.",
-         f"- Eğilim (Theil–Sen, bootstrap %95): toplam uzunluk kare başına {tr_total['theil_sen_slope_per_frame']:.2f} px "
-         f"[{tr_total['ci_low']:.2f}, {tr_total['ci_high']:.2f}]; en uzun parça {tr_largest['theil_sen_slope_per_frame']:.2f} px "
-         f"[{tr_largest['ci_low']:.2f}, {tr_largest['ci_high']:.2f}]. Zaman sırası geçicidir; bu eğim 'kare başına' değerdir.",
-         "- **ÖLÇEK TUTARLILIK KONTROLÜ:** tahmini ölçekte (%.2f nm/piksel) ilk karedeki en uzun parça %.0f nm, toplam DNA %.0f nm; "
-         "bütün pBR322 yalnızca %.0f nm olabilir (4363 bp × 0.34 nm). En uzun parça plazmidin %.2f katı, toplam %.2f katı."
+    L = ["## Heading 4: contour length over time (English summary)", "",
+         f"- Measurement-method bias (with synthetic curves, {bias['n_curves']} curves): {bias['reading']} "
+         f"(95% interval {bias['ratio_95_low']:.3f}–{bias['ratio_95_high']:.3f}). All lengths are corrected for this bias and the raw values are also provided.",
+         f"- In the first frame the longest piece (corrected) is {a.largest_corrected_px:.0f} px and the total DNA {a.total_corrected_px:.0f} px; "
+         f"in the last frame the longest is {z.largest_corrected_px:.0f} px and the total {z.total_corrected_px:.0f} px; number of pieces {int(a.n_pieces)} → {int(z.n_pieces)}.",
+         f"- Trend (Theil–Sen, bootstrap 95%): total length {tr_total['theil_sen_slope_per_frame']:.2f} px per frame "
+         f"[{tr_total['ci_low']:.2f}, {tr_total['ci_high']:.2f}]; longest piece {tr_largest['theil_sen_slope_per_frame']:.2f} px "
+         f"[{tr_largest['ci_low']:.2f}, {tr_largest['ci_high']:.2f}]. The time order is provisional; this slope is a 'per frame' value.",
+         "- **SCALE CONSISTENCY CHECK:** at the estimated scale (%.2f nm/pixel) the longest piece in the first frame is %.0f nm and the total DNA %.0f nm; "
+         "the whole pBR322 can only be %.0f nm (4363 bp × 0.34 nm). The longest piece is %.2f times the plasmid and the total %.2f times."
          % (sc["estimated_nm_per_px"], sc["frame1_largest_nm_at_estimated_scale"], sc["frame1_total_nm_at_estimated_scale"],
             sc["plasmid_full_contour_nm"], sc["ratio_largest_to_plasmid"], sc["ratio_total_to_plasmid"])]
     if sc["ratio_largest_to_plasmid"] > 1.15:
-        L.append("  Bu, tek bir pBR322 için fazla uzun. Olası nedenler: (1) görüntü ölçeği 1000 nm tahmininden küçük "
-                 f"(en uzun parça tam plazmit ise ≈{sc['implied_nm_per_px_if_largest_is_whole_plasmid']} nm/piksel), "
-                 "(2) birden fazla molekül tek parça olarak segmentlenmiş, (3) iplik düz değil, kıvrımlı ve uzunluk fazla sayılmış. "
-                 "Kesin ölçek için hocadan ham dosya veya gerçek piksel boyutu gerekir; nm sütunları bu yüzden yalnızca kaba tahmindir.")
+        L.append("  This is too long for a single pBR322. Possible reasons: (1) the image scale is smaller than the 1000 nm estimate "
+                 f"(≈{sc['implied_nm_per_px_if_largest_is_whole_plasmid']} nm/pixel if the longest piece is the whole plasmid), "
+                 "(2) several molecules were segmented as one piece, (3) the strand is not straight but coiled and the length is overcounted. "
+                 "A firm scale needs the raw file or the real pixel size from the supervisor; the nm columns are therefore only a rough estimate.")
     elif sc["ratio_largest_to_plasmid"] < 0.85:
-        L.append("  En uzun parça tam plazmitten kısa: ya zaten parçalanmış ya da görüntü plazmidin bir kısmını içeriyor.")
+        L.append("  The longest piece is shorter than the whole plasmid: either it is already fragmented or the image contains only part of the plasmid.")
     else:
-        L.append("  En uzun parça tam plazmit uzunluğu ile uyumlu görünüyor.")
-    L.append(f"- Sayıma girmeyen küçük parçalar (20 pikselden kısa): kare başına ortalama {df['n_pieces_below_min_not_counted'].mean():.0f} parça, "
-             f"toplam {df['length_below_min_not_counted_px'].mean():.0f} px (kare başına en fazla {df['length_below_min_not_counted_px'].max():.0f}). "
-             f"Zamanla eğilimi: Spearman ρ = {rho_u.statistic:.2f} (p = {rho_u.pvalue:.2f}). "
-             "Sayı ve toplam zamanla sistematik artmıyorsa bunlar sabit bir gürültü zemini sayılır ve eğilimi bozmaz; "
-             "gerçek kısa parçalar (20–49 px) zaten sayılıyor.")
-    L.append("- Piksel cinsinden sonuçlar (en uzun parça, toplam uzunluk, parça sayısı) ölçekten bağımsızdır ve ana bulgudur; nm yalnızca tahmindir.")
+        L.append("  The longest piece looks consistent with the full plasmid length.")
+    L.append(f"- Small pieces not counted (shorter than 20 pixels): on average {df['n_pieces_below_min_not_counted'].mean():.0f} pieces per frame, "
+             f"{df['length_below_min_not_counted_px'].mean():.0f} px in total (at most {df['length_below_min_not_counted_px'].max():.0f} per frame). "
+             f"Trend over time: Spearman ρ = {rho_u.statistic:.2f} (p = {rho_u.pvalue:.2f}). "
+             "If their number and total do not increase systematically with time, they count as a constant noise floor and do not distort the trend; "
+             "real short pieces (20–49 px) are already counted.")
+    L.append("- Results in pixels (longest piece, total length, number of pieces) are independent of the scale and are the main finding; nm is only an estimate.")
     return "\n".join(L) + "\n"
 
 
@@ -238,7 +238,7 @@ def run(outputs: Path, config: Path = cfgmod.DEFAULT_CONFIG_PATH, s: LengthSetti
     df.to_csv(out / "length_by_frame.csv", index=False)
     frag.to_csv(out / "fragment_lengths.csv", index=False)
     synth.round(4).to_csv(out / "length_estimator_bias.csv", index=False)
-    (out / "summary_tr.md").write_text(summary_text(bias, sc, df, tr_total, tr_largest), encoding="utf-8")
+    (out / "summary.md").write_text(summary_text(bias, sc, df, tr_total, tr_largest), encoding="utf-8")
     (out / "parameters.json").write_text(json.dumps({"settings": asdict(s), "bias": bias, "scale_check": sc,
                                                      "trend_total": tr_total, "trend_largest": tr_largest,
                                                      "notes": "nm columns depend on a still-estimated scale; plasmid-anchor column assumes the largest piece of frame 1 is the whole plasmid (a hypothesis, not a fact)"},

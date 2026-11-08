@@ -33,8 +33,8 @@ from .phase7 import EPS_GRID, R_GRID, h1_fate_check, llr_table
 DEFAULT_OUTPUTS = PROJECT_ROOT / "outputs"
 FEATURE_SETS = ("strong_only", "strong_and_weak", "trusted_tracks")
 BF_AGAINST = 1.0 / 3.0   # Bayes factor below this in EVERY feature set counts as evidence against a model
-SET_TR = {"strong_only": "yalnızca güçlü tespitler (eski)", "strong_and_weak": "güçlü + zayıf tespitler (Başlık 1)",
-          "trusted_tracks": "yalnızca güvenilir izler (yüksek/orta güven)"}
+SET_LABEL = {"strong_only": "strong detections only (old)", "strong_and_weak": "strong + weak detections (Heading 1)",
+          "trusted_tracks": "trusted tracks only (high/medium confidence)"}
 
 
 def feature_sets(det_strong: pd.DataFrame, det_v2: pd.DataFrame, trk_v2: pd.DataFrame) -> dict[str, pd.DataFrame]:
@@ -126,84 +126,84 @@ def evidence_table(res: dict, bf: dict, fate: dict, h2: dict) -> pd.DataFrame:
     bf_far_all = [bf[k]["BF_far_vs_independent"] for k in near]
     strong_against_near = same_near and "worse" in levels_near.values() and max(bf_near_all) < BF_AGAINST
     strong_against_far = same_far and "worse" in levels_far.values() and max(bf_far_all) < BF_AGAINST
-    rows.append({"hypothesis": "H1", "evidence": "konum (yakın model, R=30 px)",
-                 "numbers": "; ".join(f"{SET_TR[k]}: LLR {v['near_llr']:+.1f} [{v['near_lo']:+.1f}, {v['near_hi']:+.1f}]" for k, v in near.items()),
-                 "reading": ("tüm özellik kümelerinde bağımsız modelden " + {"worse": "kötü", "better": "iyi", "indistinguishable": "ayırt edilemiyor"}[next(iter(levels_near.values()))]
-                             if same_near else "sonuç özellik kümesine göre değişiyor (izleme yöntemine duyarlı)"),
+    rows.append({"hypothesis": "H1", "evidence": "position (near model, R=30 px)",
+                 "numbers": "; ".join(f"{SET_LABEL[k]}: LLR {v['near_llr']:+.1f} [{v['near_lo']:+.1f}, {v['near_hi']:+.1f}]" for k, v in near.items()),
+                 "reading": ("in all feature sets " + {"worse": "worse than", "better": "better than", "indistinguishable": "indistinguishable from"}[next(iter(levels_near.values()))] + " the independent model"
+                             if same_near else "the result varies with the feature set (sensitive to the tracking method)"),
                  "direction": "against" if strong_against_near else ("for" if (same_near and "better" in levels_near.values() and min(bf_near_all) > 3.0) else "neutral")})
-    rows.append({"hypothesis": "H1", "evidence": "konum, R ve karışım ağırlığı üzerinden ortalama (Bayes faktörü yakın/bağımsız)",
-                 "numbers": "; ".join(f"{SET_TR[k]}: BF {bf[k]['BF_near_vs_independent']:.2g}" for k in near),
-                 "reading": ("tüm kümelerde bağımsız modeli tercih ediyor (BF < 1/3)" if max(bf_near_all) < BF_AGAINST
-                             else "izleme yöntemine göre değişiyor; bağımsız modeli açıkça tercih etmiyor"),
+    rows.append({"hypothesis": "H1", "evidence": "position, averaged over R and mixture weight (Bayes factor near/independent)",
+                 "numbers": "; ".join(f"{SET_LABEL[k]}: BF {bf[k]['BF_near_vs_independent']:.2g}" for k in near),
+                 "reading": ("prefers the independent model in all sets (BF < 1/3)" if max(bf_near_all) < BF_AGAINST
+                             else "varies with the tracking method; does not clearly prefer the independent model"),
                  "direction": "against" if max(bf_near_all) < BF_AGAINST else ("for" if min(bf_near_all) > 3.0 else "neutral")})
     n, k = fate.get("n_near_features"), fate.get("n_lost")
     base = fate.get("baseline_lost_fraction")
     more = fate.get("p_value_more_loss_than_baseline")
-    rows.append({"hypothesis": "H1", "evidence": "kopma yerine yakın özelliklerin kaderi",
-                 "numbers": f"yakındaki {n} özellikten {k} kayboldu; genel kayıp oranı {base}; daha çok kayıp testi p={more}",
-                 "reading": "yakındaki özellikler olağandan çok kaybolmuyor" if (more is None or more >= 0.05) else "yakındaki özellikler olağandan çok kaybolmuş",
+    rows.append({"hypothesis": "H1", "evidence": "fate of features near the break site",
+                 "numbers": f"of {n} nearby features, {k} disappeared; overall loss share {base}; more-loss test p={more}",
+                 "reading": "nearby features do not disappear more than usual" if (more is None or more >= 0.05) else "nearby features disappeared more than usual",
                  "direction": "against" if (more is None or more >= 0.05) else "for"})
-    rows.append({"hypothesis": "H2", "evidence": "özellikler arası mesafe (Başlık 1)",
-                 "numbers": f"karar verilen {h2.get('pairs_decided')} çiftten {h2.get('pairs_constant')} sabit, {h2.get('pairs_changing')} değişiyor; "
-                            f"{h2.get('pairs_conflicting_or_undetermined')} çift belirsiz/çelişkili",
-                 "reading": ("çiftlerin çoğunda mesafe sabit; kayma yaygın değil" if h2.get("changing_fraction_decided", 0) < 0.2
-                             else "çiftlerin önemli bölümünde mesafe değişiyor; kayma olasılığı var"),
+    rows.append({"hypothesis": "H2", "evidence": "distance between features (Heading 1)",
+                 "numbers": f"of {h2.get('pairs_decided')} decided pairs, {h2.get('pairs_constant')} are constant and {h2.get('pairs_changing')} change; "
+                            f"{h2.get('pairs_conflicting_or_undetermined')} pairs undetermined/conflicting",
+                 "reading": ("the distance is constant in most pairs; sliding is not widespread" if h2.get("changing_fraction_decided", 0) < 0.2
+                             else "the distance changes in a substantial share of pairs; sliding is possible"),
                  "direction": ("for" if h2.get("changing_fraction_decided", 0) >= 0.2 else
                                ("neutral" if h2.get("p_more_changes_than_1pct_false_alarm", 1) < 0.05 else "against"))})
     if h2.get("p_more_changes_than_1pct_false_alarm", 1) < 0.05 and h2.get("pairs_changing", 0):
         top = sorted(h2["tracks_in_changing_pairs"].items(), key=lambda kv: -kv[1])[:3]
-        rows.append({"hypothesis": "H2", "evidence": "mesafesi değişen çiftler (hareketli aday)",
-                     "numbers": f"{h2['pairs_changing']}/{h2['pairs_decided']} çift (%{100 * h2['changing_fraction_decided']:.1f}); 1% yanlış alarm beklentisinden fazla (p={h2['p_more_changes_than_1pct_false_alarm']:.3f}); "
-                                f"en sık görünen izler: " + ", ".join(f"iz {t} ({n} çift)" for t, n in top),
-                     "reading": "az sayıda çiftte mesafe şansın açıklayacağından fazla değişiyor; tek bir özellik (en sık görünen iz) hareketli olabilir. Çiftler bağımsız olmadığı için p iyimser",
+        rows.append({"hypothesis": "H2", "evidence": "pairs with changing distance (candidate movers)",
+                     "numbers": f"{h2['pairs_changing']}/{h2['pairs_decided']} pairs ({100 * h2['changing_fraction_decided']:.1f}%); more than the expected 1% false alarms (p={h2['p_more_changes_than_1pct_false_alarm']:.3f}); "
+                                f"most frequently appearing tracks: " + ", ".join(f"track {t} ({n} pairs)" for t, n in top),
+                     "reading": "in a small number of pairs the distance changes more than chance would explain; a single feature (the most frequently appearing track) may be moving. Pairs are not independent, so the p value is optimistic",
                      "direction": "neutral"})
-    rows.append({"hypothesis": "H2", "evidence": "güvenilir uzun izlerin hareket sınıfları",
-                 "numbers": f"{h2.get('trusted_long_tracks')} güvenilir uzun izden {h2.get('trusted_long_stationary')} sabit, {h2.get('trusted_long_moved')} yer değiştirmiş",
-                 "reading": "çoğu özellik sabit", "direction": "against" if h2.get("trusted_long_moved", 0) < 0.25 * max(h2.get("trusted_long_tracks", 1), 1) else "neutral"})
-    rows.append({"hypothesis": "H3", "evidence": "konum (uzak model, R=30 px)",
-                 "numbers": "; ".join(f"{SET_TR[k]}: LLR {v['far_llr']:+.1f} [{v['far_lo']:+.1f}, {v['far_hi']:+.1f}]" for k, v in near.items()),
-                 "reading": ("tüm özellik kümelerinde bağımsız modelden " + {"worse": "kötü", "better": "iyi", "indistinguishable": "ayırt edilemiyor"}[next(iter(levels_far.values()))]
-                             if same_far else "sonuç özellik kümesine göre değişiyor (izleme yöntemine duyarlı)")
-                            + "; ancak özelliğin yanındaki soluk DNA eşiklemede kopuk görünebilir, bu yöntem etkisi olabilir",
+    rows.append({"hypothesis": "H2", "evidence": "movement classes of trusted long tracks",
+                 "numbers": f"of {h2.get('trusted_long_tracks')} trusted long tracks, {h2.get('trusted_long_stationary')} are stationary and {h2.get('trusted_long_moved')} moved",
+                 "reading": "most features are stationary", "direction": "against" if h2.get("trusted_long_moved", 0) < 0.25 * max(h2.get("trusted_long_tracks", 1), 1) else "neutral"})
+    rows.append({"hypothesis": "H3", "evidence": "position (far model, R=30 px)",
+                 "numbers": "; ".join(f"{SET_LABEL[k]}: LLR {v['far_llr']:+.1f} [{v['far_lo']:+.1f}, {v['far_hi']:+.1f}]" for k, v in near.items()),
+                 "reading": ("in all feature sets " + {"worse": "worse than", "better": "better than", "indistinguishable": "indistinguishable from"}[next(iter(levels_far.values()))] + " the independent model"
+                             if same_far else "the result varies with the feature set (sensitive to the tracking method)")
+                            + "; however, faint DNA next to a feature can look broken after thresholding, which may be a method effect",
                  "direction": "against" if strong_against_far else ("for" if (same_far and "better" in levels_far.values() and min(bf_far_all) > 3.0) else "neutral")})
-    rows.append({"hypothesis": "H3", "evidence": "konum, R ve karışım ağırlığı üzerinden ortalama (Bayes faktörü uzak/bağımsız)",
-                 "numbers": "; ".join(f"{SET_TR[k]}: BF {bf[k]['BF_far_vs_independent']:.2g}" for k in near),
-                 "reading": ("tüm kümelerde bağımsız modeli tercih ediyor (BF < 1/3)" if max(bf_far_all) < BF_AGAINST
-                             else "izleme yöntemine göre değişiyor (eski güçlü-tespit kümesinde bağımsız modelden ayırt edilemiyor); sonuç izlemeye duyarlı"),
+    rows.append({"hypothesis": "H3", "evidence": "position, averaged over R and mixture weight (Bayes factor far/independent)",
+                 "numbers": "; ".join(f"{SET_LABEL[k]}: BF {bf[k]['BF_far_vs_independent']:.2g}" for k in near),
+                 "reading": ("prefers the independent model in all sets (BF < 1/3)" if max(bf_far_all) < BF_AGAINST
+                             else "varies with the tracking method (indistinguishable from the independent model in the old strong-detection set); the result is sensitive to tracking"),
                  "direction": "against" if max(bf_far_all) < BF_AGAINST else ("for" if min(bf_far_all) > 3.0 else "neutral")})
     b = bf.get("strong_and_weak", {})
     if b:
-        rows.append({"hypothesis": "all", "evidence": "Bayes faktörleri ve olasılıklar (güçlü + zayıf özellikler, tüm kopma adayları)",
-                     "numbers": f"BF yakın/bağımsız {b['BF_near_vs_independent']:.2g}; BF uzak/bağımsız {b['BF_far_vs_independent']:.2g}; "
-                                f"olasılıklar (eşit önsel): bağımsız {b['P_independent']:.2f}, yakın {b['P_near']:.2f}, uzak {b['P_far']:.2f}",
-                     "reading": "önsel dağılım R ve karışım ağırlığı ızgarası üzerinde düzgün; olasılıklar bu seçime bağlıdır", "direction": "neutral"})
+        rows.append({"hypothesis": "all", "evidence": "Bayes factors and probabilities (strong + weak features, all break candidates)",
+                     "numbers": f"BF near/independent {b['BF_near_vs_independent']:.2g}; BF far/independent {b['BF_far_vs_independent']:.2g}; "
+                                f"probabilities (equal prior): independent {b['P_independent']:.2f}, near {b['P_near']:.2f}, far {b['P_far']:.2f}",
+                     "reading": "the prior is uniform over the grid of R and mixture weight; the probabilities depend on this choice", "direction": "neutral"})
     return pd.DataFrame(rows)
 
 
 def final_text(ev_tab: pd.DataFrame, res: dict, bf: dict, h2: dict) -> str:
-    L = ["## Başlık 6: üç mekanizma modeli (Türkçe özet, tanımlayıcı)", ""]
-    for h, name in (("H1", "Enzim dendrimerleri iterek keser"), ("H2", "Dendrimerler DNA üzerinde kendiliğinden kayar"),
-                    ("H3", "Enzim yalnızca çıplak bölgeleri keser")):
+    L = ["## Heading 6: three-mechanism model (English summary, descriptive)", ""]
+    for h, name in (("H1", "The enzyme pushes dendrimers away and then cuts"), ("H2", "Dendrimers slide along the DNA on their own"),
+                    ("H3", "The enzyme cuts only naked regions")):
         sub = ev_tab[ev_tab["hypothesis"] == h]
         dirs = list(sub["direction"])
         if dirs and all(d == "for" for d in dirs):
-            v = "veri bu hipotezle uyumlu"
+            v = "the data are consistent with this hypothesis"
         elif dirs and all(d == "against" for d in dirs):
-            v = "veri bu hipotezi desteklemiyor (kesin çürütme değil)"
+            v = "the data do not support this hypothesis (not a firm refutation)"
         elif "for" in dirs and "against" in dirs:
-            v = "kanıtlar çelişiyor"
+            v = "the evidence conflicts"
         else:
-            v = "veri belirsiz (kanıtların hepsi aynı yönde değil ya da yöntem etkisi var)"
+            v = "data inconclusive (the evidence does not all point the same way, or there is a method effect)"
         L.append(f"- **{h} ({name}): {v}.**")
         for r in sub.itertuples():
-            L.append(f"  - {r.evidence}: {r.numbers}. Okuma: {r.reading}.")
+            L.append(f"  - {r.evidence}: {r.numbers}. Reading: {r.reading}.")
     b = bf.get("strong_and_weak")
     if b:
-        L.append(f"- Olasılık özeti (güçlü + zayıf özellikler, {b['n_events']} kopma adayı, eşit önsel): bağımsız {b['P_independent']:.2f}, yakın {b['P_near']:.2f}, uzak {b['P_far']:.2f}. "
-                 "Bu sayılar R ve karışım ağırlığı için seçilen düzgün önsele bağlıdır; mutlak olasılık olarak okunmamalıdır.")
-    L.append("- Bu veride hiçbir mekanizma doğrulanmış ya da kesin çürütülmüş değildir: tek molekül, tek deney, kontrol yok, özelliklerin kimliği bilinmiyor, "
-             f"kopma adayı sayısı az ({res['strong_and_weak']['n_events']}), kalıcı aday ise yalnızca 4.")
-    L.append("- Bu soruyu gerçekten çözecek veri: aynı koşulda enzimsiz ve polimersiz kontroller, enzimi ya da polimeri etiketli deney, ham yükseklik verisi, birden çok molekül.")
+        L.append(f"- Probability summary (strong + weak features, {b['n_events']} break candidates, equal prior): independent {b['P_independent']:.2f}, near {b['P_near']:.2f}, far {b['P_far']:.2f}. "
+                 "These numbers depend on the uniform prior chosen for R and the mixture weight; they should not be read as absolute probabilities.")
+    L.append("- No mechanism is confirmed or firmly refuted in these data: one molecule, one experiment, no control, features unidentified, "
+             f"few break candidates ({res['strong_and_weak']['n_events']}), and only 4 persistent candidates.")
+    L.append("- Data that would really settle this question: controls without enzyme and without polymer under the same conditions, an experiment with the enzyme or polymer labelled, raw height data, several molecules.")
     return "\n".join(L) + "\n"
 
 
@@ -313,7 +313,7 @@ def run(outputs: Path, seed: int = 1) -> dict:
     (out / "parameters.json").write_text(json.dumps({"R_grid": R_GRID, "eps_grid": EPS_GRID, "results": clean, "bayes": bf, "h2": h2,
                                                      "prior": "equal prior on independent/near/far; uniform on the R x eps grid",
                                                      "notes": "descriptive model comparison; no mechanism confirmed"}, indent=2, default=float), encoding="utf-8")
-    (out / "summary_tr.md").write_text(final_text(ev_tab, clean, bf, h2), encoding="utf-8")
+    (out / "summary.md").write_text(final_text(ev_tab, clean, bf, h2), encoding="utf-8")
     figure(clean, bf, llr_all, out)
     return {"results": clean, "bayes": bf, "h2": h2, "evidence": ev_tab}
 

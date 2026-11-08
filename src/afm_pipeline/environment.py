@@ -45,12 +45,12 @@ def main(argv=None) -> int:
     out_dir.mkdir(parents=True, exist_ok=True)
     env = collect()
     (out_dir / "environment.json").write_text(json.dumps(env, indent=2) + "\n")
-    lines = ["# Çalıştırma ortamı", "",
-             f"- Python: {env['python']}", f"- Sistem: {env['platform']} ({env['machine']})", ""]
+    lines = ["# Run environment", "",
+             f"- Python: {env['python']}", f"- System: {env['platform']} ({env['machine']})", ""]
     lines += [f"- {k}: {v}" for k, v in env["packages"].items()]
-    lines += ["", "Farklı makinelerde kütüphane sürümleri farklıysa, bazı ara sayılar "
-              "çok küçük (piksel altı) oynayabilir. Hüküm sayıları bu farktan etkilenmemelidir; "
-              "iki makineyi karşılaştırmak için environment.json dosyalarına bakın."]
+    lines += ["", "If library versions differ between machines, some intermediate numbers can "
+              "move by very small (sub-pixel) amounts. Verdict counts should not be affected by this; "
+              "to compare two machines, see the environment.json files."]
     (out_dir / "environment.md").write_text("\n".join(lines) + "\n")
     print(f"Written: {out_dir}")
     return 0

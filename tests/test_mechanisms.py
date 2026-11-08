@@ -69,4 +69,4 @@ def test_final_text_requires_unanimity():
     res, bf = _res((-5, -9, -1), (-5, -9, -1)), _bf(0.01, 0.01)
     t = M.evidence_table(res, bf, fate, h2)
     txt = M.final_text(t, res, bf, h2)
-    assert "H3" in txt and "desteklemiyor" in txt
+    assert "H3" in txt and "do not support this hypothesis" in txt

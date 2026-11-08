@@ -45,7 +45,7 @@ DEFAULT_OUTPUTS = PROJECT_ROOT / "outputs"
 R_GRID = [10, 15, 20, 25, 30, 40, 50]
 EPS_GRID = [0.01, 0.05, 0.20]
 LOSS_RUN = 2          # a contour pixel counts as lost when uncovered in this many consecutive valid frames
-CLS_TR = {"persistent_stationary": "kalıcı ve sabit", "transient_short": "kısa ömürlü", "intermediate": "ara"}
+CLS_LABEL = {"persistent_stationary": "persistent and stationary", "transient_short": "short-lived", "intermediate": "intermediate"}
 VALID_ALIGN = 0.90    # frames where the aligned contour matches the mask this well are used for the loss map
 COVER_TOL_PX = 3      # mask is dilated by this much before asking "is the DNA still here?"
 
@@ -228,10 +228,10 @@ def h1_fate_check(ev_assoc: pd.DataFrame, baseline_lost: float) -> dict:
 
 def _state(lo: float, hi: float, point: float) -> str:
     if hi < 0:
-        return "bağımsız modelden açıkça kötü (bootstrap aralığı tamamen sıfırın altında)"
+        return "clearly worse than the independent model (bootstrap interval entirely below zero)"
     if lo > 0:
-        return "bağımsız modelden açıkça iyi (bootstrap aralığı tamamen sıfırın üstünde)"
-    return "bağımsız modelden ayırt edilemiyor (bootstrap aralığı sıfırı içeriyor)"
+        return "clearly better than the independent model (bootstrap interval entirely above zero)"
+    return "indistinguishable from the independent model (bootstrap interval contains zero)"
 
 
 def verdict_text(llr: pd.DataFrame, fate: dict, trk: pd.DataFrame, cls_tests: dict) -> pd.DataFrame:
@@ -243,33 +243,33 @@ def verdict_text(llr: pd.DataFrame, fate: dict, trk: pd.DataFrame, cls_tests: di
     n_mv = int((long["motion_class"] == "moved").sum())
     rows = []
     if r.empty:
-        near_s = far_s = "hesaplanamadı"
-        nt = ft = "yok"
+        near_s = far_s = "could not be computed"
+        nt = ft = "none"
         best_near = best_far = float("nan")
     else:
         r = r.iloc[0]
         near_s = _state(r["LLR_near_boot95_lo"], r["LLR_near_boot95_hi"], r["LLR_near_vs_independent"])
         far_s = _state(r["LLR_far_boot95_lo"], r["LLR_far_boot95_hi"], r["LLR_far_vs_independent"])
-        nt = (f"yakın modeli {r['LLR_near_vs_independent']:+.1f} "
-              f"(%95 aralık {r['LLR_near_boot95_lo']:+.1f} ile {r['LLR_near_boot95_hi']:+.1f})")
-        ft = (f"uzak modeli {r['LLR_far_vs_independent']:+.1f} "
-              f"(%95 aralık {r['LLR_far_boot95_lo']:+.1f} ile {r['LLR_far_boot95_hi']:+.1f})")
+        nt = (f"near model {r['LLR_near_vs_independent']:+.1f} "
+              f"(95% interval {r['LLR_near_boot95_lo']:+.1f} to {r['LLR_near_boot95_hi']:+.1f})")
+        ft = (f"far model {r['LLR_far_vs_independent']:+.1f} "
+              f"(95% interval {r['LLR_far_boot95_lo']:+.1f} to {r['LLR_far_boot95_hi']:+.1f})")
         best_near = float(allr["LLR_near_vs_independent"].max())
         best_far = float(allr["LLR_far_vs_independent"].max())
-    grid = (f"R=10-50 px ve karışım ağırlığı 0.01-0.20 boyunca en iyi değerler: yakın {best_near:+.1f}, uzak {best_far:+.1f} "
-            f"(+2.3'ten büyük olsaydı belirgin üstünlük sayılırdı).")
-    rows.append({"hypothesis": "H1", "hypothesis_tr": "Enzim dendrimerleri iterek keser",
-                 "model_numbers": f"Yakın modeli (R=30 px, 16 aday): {nt}. {grid} "
-                                  f"Yakındaki {fate.get('n_near_features')} özellikten {fate.get('n_lost')} kayboldu "
-                                  f"(genel kayıp oranı {fate.get('baseline_lost_fraction')}; 'yarısı kaybolurdu' beklentisine karşı p={fate.get('p_value_if_half_were_lost')}).",
-                 "reading_tr": f"Konum modeli: yakın modeli {near_s}. İlk sürümdür (yalnızca güçlü tespitler); güncel ve üç özellik kümesiyle karşılaştırılmış değerlendirme Başlık 6'dadır (outputs/mechanisms)."})
-    rows.append({"hypothesis": "H2", "hypothesis_tr": "Dendrimerler DNA üzerinde kendiliğinden kayar",
-                 "model_numbers": f"{len(long)} uzun izden {n_st} sabit, {n_mv} yer değiştirmiş.",
-                 "reading_tr": "İlk sürüm: yalnızca hareket sınıflarına bakıldı. Özellikler arası mesafeye dayanan güncel H2 testi Başlık 1 ve Başlık 6'dadır (outputs/phase6b, outputs/mechanisms)."})
-    rows.append({"hypothesis": "H3", "hypothesis_tr": "Enzim yalnızca çıplak bölgeleri keser",
-                 "model_numbers": f"Uzak modeli (R=30 px, 16 aday): {ft}. {grid}",
-                 "reading_tr": f"Konum modeli: uzak modeli {far_s}. Ama özelliğin yanındaki soluk DNA eşiklemede kopuk görünebilir (yöntem etkisi), "
-                               "bu yüzden bu sonuç biyolojik kanıt sayılmaz."})
+    grid = (f"Best values across R=10-50 px and mixture weight 0.01-0.20: near {best_near:+.1f}, far {best_far:+.1f} "
+            f"(a value above +2.3 would have counted as a clear advantage).")
+    rows.append({"hypothesis": "H1", "hypothesis_name": "The enzyme pushes dendrimers away and then cuts",
+                 "model_numbers": f"Near model (R=30 px, 16 candidates): {nt}. {grid} "
+                                  f"Of the {fate.get('n_near_features')} nearby features, {fate.get('n_lost')} disappeared "
+                                  f"(overall loss share {fate.get('baseline_lost_fraction')}; p={fate.get('p_value_if_half_were_lost')} against the expectation 'half would disappear').",
+                 "reading": f"Position model: near model {near_s}. This is the first version (strong detections only); the current evaluation, compared across three feature sets, is in Heading 6 (outputs/mechanisms)."})
+    rows.append({"hypothesis": "H2", "hypothesis_name": "Dendrimers slide along the DNA on their own",
+                 "model_numbers": f"Of {len(long)} long tracks, {n_st} are stationary and {n_mv} moved.",
+                 "reading": "First version: only the movement classes were examined. The current H2 test based on the distance between features is in Heading 1 and Heading 6 (outputs/phase6b, outputs/mechanisms)."})
+    rows.append({"hypothesis": "H3", "hypothesis_name": "The enzyme cuts only naked regions",
+                 "model_numbers": f"Far model (R=30 px, 16 candidates): {ft}. {grid}",
+                 "reading": f"Position model: far model {far_s}. But faint DNA next to a feature can look broken after thresholding (method effect), "
+                               "so this result does not count as biological evidence."})
     df = pd.DataFrame(rows)
     df["verdict"] = "none: one molecule, unidentified features; descriptive model comparison only"
     return df
@@ -417,7 +417,7 @@ def run(outputs: Path, data_dir: Path, config: Path = cfgmod.DEFAULT_CONFIG_PATH
                  "one molecule, descriptive only"}, indent=2, default=float), encoding="utf-8")
     p4 = outputs / "phase4" / "frame_measurements.csv"
     figures(prof, contour, ev, llr, trk, out, pd.read_csv(p4) if p4.is_file() else None)
-    (out / "summary_tr.md").write_text(summary_text(prof, cls_df, cls_info, fate, verdict), encoding="utf-8")
+    (out / "summary.md").write_text(summary_text(prof, cls_df, cls_info, fate, verdict), encoding="utf-8")
     return {"profile": prof, "classes": cls_df, "class_info": cls_info, "llr": llr, "fate": fate, "verdict": verdict}
 
 
@@ -428,25 +428,25 @@ def summary_text(prof: dict, class_df: pd.DataFrame, info: dict, fate: dict, ver
     gap_share = float(pix["gap_seen"].mean())
     n_valid = len(ok)
     lines = [
-        "## Faz 7: zaman, yer ve mekanizma modeli (Türkçe özet)",
+        "## Phase 7: time, place and mechanism model (English summary)",
         "",
-        f"- İlk {n_valid} karede DNA referans konturla güvenilir hizalanıyor (örtüşme en az %90). Bu karelerde konturun yaklaşık "
-        f"%{100 * gap_share:.0f}'inde en az 2 ardışık karede boşluk görüldü; boşluklar konturun birkaç belirli yerinde toplanıyor (fig_loss_time_map).",
-        f"- Sonraki karelerde kontur örtüşmesi %{100 * float(pf['contour_covered_fraction'].iloc[-1]):.0f} civarına iniyor. Faz 4'te en uzun parça "
-        "ilk 49 karede benzer uzunlukta kaldığı için bu düşüş büyük olasılıkla DNA'nın kaybolması değil şeklinin değişmesidir "
-        "(yalnızca öteleme hizalaması kullanıldı). Bu veriyle kesin ayrılamaz.",
-        "- Bu fazda yükseklik yok: yalnızca JPG yoğunluğu (ridge seviyesine göre) ve soluk iskelet oranı kare kare verildi, bunlar kalibre edilmiş yükseklik değildir. "
-        "Varsayımsal nm yüksekliği Başlık 3'te (outputs/heights, config [height]) ayrıca ve 'VARSAYIM' etiketiyle üretilir.",
-        f"- Davranış sınıfları ({', '.join(f'{CLS_TR.get(r.behaviour_class, r.behaviour_class)}: {r.n_tracks}' for r in class_df.itertuples())}): "
-        "uzun ömürlü sabit özellikler kısa ömürlülerden belirgin büyük ve parlak; ancak küçük ve soluk özellikler eşik altına kolay düştüğü için kısa ömürlü görünür, bu fark kısmen seçilim etkisidir. Bu bir kimlik ataması değildir (ayrıntı: Başlık 2).",
-        f"- İzlerin {info['diagnostics']['single_detection_tracks']}/{info['diagnostics']['tracks']} tanesi tek karede görünüyor "
-        "(bu fazda yalnızca güçlü tespitler izlendi). Zayıf ama tutarlı tepeleri de izleyen güçlendirilmiş takip Başlık 1'dedir (outputs/phase6b), tek karelik iz sayısı orada çok azalır.",
+        f"- In the first {n_valid} frames the DNA is reliably aligned with the reference contour (overlap at least 90%). In these frames about "
+        f"{100 * gap_share:.0f}% of the contour showed a gap in at least 2 consecutive frames; the gaps cluster at a few specific places on the contour (fig_loss_time_map).",
+        f"- In later frames the contour overlap drops to about {100 * float(pf['contour_covered_fraction'].iloc[-1]):.0f}%. Because the longest piece in Phase 4 "
+        "stayed a similar length in the first 49 frames, this drop is most likely a change of shape rather than DNA disappearing "
+        "(only translation alignment was used). This cannot be separated firmly with these data.",
+        "- There is no height in this phase: only JPG intensity (relative to the ridge level) and the faint skeleton fraction were given frame by frame, and these are not calibrated heights. "
+        "Assumed nm height is produced separately in Heading 3 (outputs/heights, config [height]) with an 'ASSUMED' label.",
+        f"- Behaviour classes ({', '.join(f'{CLS_LABEL.get(r.behaviour_class, r.behaviour_class)}: {r.n_tracks}' for r in class_df.itertuples())}): "
+        "long-lived stationary features are clearly larger and brighter than short-lived ones; however, small and faint features drop below the threshold easily and so look short-lived, so this difference is partly a selection effect. This is not an identity assignment (details: Heading 2).",
+        f"- {info['diagnostics']['single_detection_tracks']}/{info['diagnostics']['tracks']} of the tracks appear in a single frame "
+        "(only strong detections were tracked in this phase). The strengthened tracking that also follows weak but consistent peaks is in Heading 1 (outputs/phase6b), where the number of single-frame tracks drops a lot.",
         "",
-        "### Üç mekanizma (olasılık modeli, tanımlayıcı)",
+        "### Three mechanisms (probability model, descriptive)",
     ]
     for r in verdict.itertuples():
-        lines += [f"- **{r.hypothesis} ({r.hypothesis_tr})**: {r.model_numbers} {r.reading_tr}"]
-    lines += ["", "Tek molekül, tek deney, kontrol yok, özelliklerin kimliği bilinmiyor: hiçbir mekanizma doğrulanmış ya da çürütülmüş sayılmaz."]
+        lines += [f"- **{r.hypothesis} ({r.hypothesis_name})**: {r.model_numbers} {r.reading}"]
+    lines += ["", "One molecule, one experiment, no control, features unidentified: no mechanism counts as confirmed or refuted."]
     return "\n".join(lines) + "\n"
 
 

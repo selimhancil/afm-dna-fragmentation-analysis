@@ -94,9 +94,9 @@ def plausibility(ridge_nm: np.ndarray, h: HeightConfig) -> dict:
     inside = h.plausible_low_nm <= med <= h.plausible_high_nm
     return {"median_ridge_nm": round(med, 2), "plausible_range_nm": [h.plausible_low_nm, h.plausible_high_nm],
             "within_plausible_range": bool(inside),
-            "reading": ("DNA yüksekliği beklenen aralıkta; doğrusal eşleme makul görünüyor (kanıt değil, tutarlılık)"
+            "reading": ("DNA height is within the expected range; the linear mapping looks plausible (consistency, not proof)"
                         if inside else
-                        "DNA yüksekliği beklenen aralığın DIŞINDA; doğrusal eşleme yanlış olabilir, yükseklikler güvenilmez")}
+                        "DNA height is OUTSIDE the expected range; the linear mapping may be wrong and the heights are unreliable")}
 
 
 def feature_heights(det: pd.DataFrame, trk: pd.DataFrame, k_by_rank: dict, noise_by_rank: dict,
@@ -164,26 +164,26 @@ def figures(frame_df: pd.DataFrame, fh: pd.DataFrame, hmap: np.ndarray, ranks: l
 
 
 def summary_text(hc: HeightConfig, plaus: dict, frame_df: pd.DataFrame, fh: pd.DataFrame) -> str:
-    L = ["## Başlık 3: yükseklik profili (Türkçe özet)", "",
-         f"- **DURUM: {hc.label}.** JPG renkli bir görüntü; renk–yükseklik eşlemesi bilinmiyor. Geçici varsayım: her karenin "
-         f"koyudan açığa renk aralığı doğrusal ve toplam {hc.z_range_nm:g} nm (hocanın e-postasındaki Z aralığı). "
-         "Bu değerler ölçüm değildir; ayar `config/project_config.ini` içindeki `[height]` bölümünden değiştirilir "
-         "(kod değişmez). z_range_nm değiştirilirse tüm yükseklikler orantılı ölçeklenir; şekiller ve zamanlama değişmez.",
-         f"- DNA sırtı tipik yüksekliği (varsayımsal): medyan {plaus['median_ridge_nm']} nm; olağan dsDNA aralığı "
-         f"{plaus['plausible_range_nm'][0]}–{plaus['plausible_range_nm'][1]} nm. Tutarlılık kontrolü: {plaus['reading']}."]
+    L = ["## Heading 3: height profile (English summary)", "",
+         f"- **STATUS: {hc.label}.** The JPG is a colour image; the colour-to-height mapping is unknown. Temporary assumption: each frame's "
+         f"dark-to-light colour range is linear and spans {hc.z_range_nm:g} nm in total (the Z range in the supervisor's email). "
+         "These values are not measurements; change them in the `[height]` section of `config/project_config.ini` "
+         "(the code does not change). If z_range_nm is changed, all heights scale proportionally; the figures and timing do not change.",
+         f"- Typical DNA ridge height (assumed): median {plaus['median_ridge_nm']} nm; usual dsDNA range "
+         f"{plaus['plausible_range_nm'][0]}–{plaus['plausible_range_nm'][1]} nm. Consistency check: {plaus['reading']}."]
     if len(frame_df):
         a, b = frame_df.iloc[0], frame_df.iloc[-1]
-        L.append(f"- Sırt yüksekliği ilk karede {a.ridge_height_nm:.2f} nm, son karede {b.ridge_height_nm:.2f} nm "
-                 f"(kareler arası medyan {frame_df['ridge_height_nm'].median():.2f}, en düşük {frame_df['ridge_height_nm'].min():.2f}, "
-                 f"en yüksek {frame_df['ridge_height_nm'].max():.2f}). Kare başına renk ölçeği ayrıca normalleniyor; "
-                 "gerçekte her kare kendi z aralığıyla kaydedilmiş olabilir.")
+        L.append(f"- Ridge height is {a.ridge_height_nm:.2f} nm in the first frame and {b.ridge_height_nm:.2f} nm in the last "
+                 f"(median across frames {frame_df['ridge_height_nm'].median():.2f}, lowest {frame_df['ridge_height_nm'].min():.2f}, "
+                 f"highest {frame_df['ridge_height_nm'].max():.2f}). The colour scale is also normalised per frame; "
+                 "in reality each frame may have been recorded with its own z range.")
     if len(fh):
-        L.append(f"- Parlak özellikler ({len(fh)} iz): tepe yüksekliği medyan {fh['median_peak_nm'].median():.1f} nm "
-                 f"(en düşük {fh['median_peak_nm'].min():.1f}, en yüksek {fh['median_peak_nm'].max():.1f}); "
-                 f"DNA sırtının üstünde medyan {fh['median_above_ridge_nm'].median():.1f} nm. "
-                 "Bu değerler özelliğin kimliğini belirlemek için kullanılamaz (varsayımsal ölçek, uç genişlemesi ve renk eşlemesi).")
-    L += ["- Hoca gerçek ham AFM dosyalarını veya renk çubuğunu verince `[height]` bölümüne `status = confirmed` yazılır "
-          "ve tüm yükseklikler gerçek değerlerle yeniden üretilir."]
+        L.append(f"- Bright features ({len(fh)} tracks): median peak height {fh['median_peak_nm'].median():.1f} nm "
+                 f"(lowest {fh['median_peak_nm'].min():.1f}, highest {fh['median_peak_nm'].max():.1f}); "
+                 f"median {fh['median_above_ridge_nm'].median():.1f} nm above the DNA ridge. "
+                 "These values cannot be used to identify the feature (assumed scale, tip broadening and colour mapping).")
+    L += ["- When the supervisor provides the real raw AFM files or the colour bar, set `status = confirmed` in the `[height]` section "
+          "and all heights are regenerated with real values."]
     return "\n".join(L) + "\n"
 
 
@@ -246,8 +246,8 @@ def run(outputs: Path, data_dir: Path, config: Path = cfgmod.DEFAULT_CONFIG_PATH
     hmap = contour_height_map(prof["rel"], lvl, kk, np.asarray(prof["valid"], bool))
     plaus = plausibility(frame_df["ridge_height_nm"].to_numpy(), hc)
     if hc.anchor_dna_height_nm is not None:
-        plaus["reading"] = (f"DNA yüksekliği doğrudan {hc.anchor_dna_height_nm:g} nm olarak varsayıldı (çapa); "
-                            "bu durumda kontrol anlamsızdır, yüksekliklerin yalnızca oranları ve değişimi yorumlanır")
+        plaus["reading"] = (f"DNA height was set directly to {hc.anchor_dna_height_nm:g} nm (anchor); "
+                            "the check is meaningless in this case, only ratios and changes in height can be interpreted")
         plaus["anchored"] = True
         plaus["within_plausible_range"] = None   # circular when anchored
         plaus["scale_factor_vs_z_range_mapping"] = round(scale_factor, 3)
@@ -266,7 +266,7 @@ def run(outputs: Path, data_dir: Path, config: Path = cfgmod.DEFAULT_CONFIG_PATH
                 prof_rows.append({"rank": r, "s_bin_start_px": float(bins[b - 1]), "mean_height_nm": round(float(np.nanmean(v)), 3),
                                   "height_status": hc.label})
     pd.DataFrame(prof_rows).to_csv(out / "height_profile_along_contour.csv", index=False)
-    (out / "summary_tr.md").write_text(summary_text(hc, plaus, frame_df, fh), encoding="utf-8")
+    (out / "summary.md").write_text(summary_text(hc, plaus, frame_df, fh), encoding="utf-8")
     (out / "parameters.json").write_text(json.dumps({"height_config": asdict(hc), "label": hc.label, "plausibility": plaus,
                                                      "notes": "ASSUMED linear colour mapping; not measured height"}, indent=2), encoding="utf-8")
     figures(frame_df, fh, hmap, ranks, contour.arc, hc, out)

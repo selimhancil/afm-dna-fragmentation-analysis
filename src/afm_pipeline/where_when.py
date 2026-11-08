@@ -145,29 +145,29 @@ def figure(ev: pd.DataFrame, lengths: pd.DataFrame, cp: dict, out: Path):
 def summary_text(ev: pd.DataFrame, tests: dict, dec: dict, cp: dict, n_valid_pos: int) -> str:
     n = len(ev)
     pers = ev[ev["persistence"] == "persistent"]
-    L = ["## Başlık 5: kopma ne zaman ve nerede? (Türkçe özet, yalnızca aday)", "",
-         f"- NE ZAMAN: {n} kopma adayından {len(pers)} tanesi kalıcı (kopuk parçalar sonraki karelerde birleşmiyor), kalan {n - len(pers)} tanesi sonradan yeniden birleşiyor. "
-         f"Kalıcı adaylar kare " + ", ".join(str(int(r)) for r in pers["rank_to"]) + " civarında. "
-         f"Ana basamak (Faz 8) kare {cp['rank']} (%95 aralığı {cp['low']}–{cp['high']}); kalıcı adaylar basamaktan "
-         f"{int((pers['rank_to'] < cp['low']).sum())} önce, {int(((pers['rank_to'] >= cp['low']) & (pers['rank_to'] <= cp['high'])).sum())} aralıkta, {int((pers['rank_to'] > cp['high']).sum())} sonra. "
-         "Zaman karşılığı tahminidir (31 sn/tarama varsayımı, tekrarlanan taramalar ve enzim ekleme anı bilinmiyor)."]
+    L = ["## Heading 5: when and where does the DNA break? (English summary, candidates only)", "",
+         f"- WHEN: of {n} break candidates, {len(pers)} are persistent (the broken pieces do not rejoin in later frames) and the other {n - len(pers)} rejoin afterwards. "
+         f"Persistent candidates are around frames " + ", ".join(str(int(r)) for r in pers["rank_to"]) + ". "
+         f"Main step (Phase 8) at frame {cp['rank']} (95% interval {cp['low']}–{cp['high']}); persistent candidates: "
+         f"{int((pers['rank_to'] < cp['low']).sum())} before the step, {int(((pers['rank_to'] >= cp['low']) & (pers['rank_to'] <= cp['high'])).sum())} within the interval, {int((pers['rank_to'] > cp['high']).sum())} after. "
+         "The time equivalent is an estimate (31 s/scan assumed; repeated scans and the enzyme addition time are unknown)."]
     if dec:
-        L.append(f"- Basamağın ayrıntısı (kare {dec['change_point_rank']} öncesi ve sonrası {5} kare ortalaması): en uzun parça "
-                 f"{dec['largest_piece_before_px']} → {dec['largest_piece_after_px']} px, toplam DNA {dec['total_before_px']} → {dec['total_after_px']} px, "
-                 f"parça sayısı {dec['pieces_before']} → {dec['pieces_after']}. En uzun parçanın toplam içindeki payı {dec['largest_over_total_before']} → {dec['largest_over_total_after']}. "
-                 "Toplam yaklaşık sabit kalırken en uzun parça küçülüyorsa DNA kaybolmuyor, parçalara ayrılıyor demektir (aday bulgu).")
-    L.append(f"- NEREDE (konturda): kontur konumu yalnızca hizalı kareler (≈1–22) ve konturun 6 px yakınındaki olaylar için güvenilir; "
-             f"{n} adaydan yalnızca {n_valid_pos} tanesi bu koşulu sağlıyor, hiçbiri kalıcı değil. Sonraki karelerde molekül şekil değiştirdiği için kontur konumu verilmiyor.")
+        L.append(f"- Detail of the step (mean of {5} frames before and after frame {dec['change_point_rank']}): longest piece "
+                 f"{dec['largest_piece_before_px']} → {dec['largest_piece_after_px']} px, total DNA {dec['total_before_px']} → {dec['total_after_px']} px, "
+                 f"number of pieces {dec['pieces_before']} → {dec['pieces_after']}. Share of the longest piece in the total {dec['largest_over_total_before']} → {dec['largest_over_total_after']}. "
+                 "If the total stays roughly constant while the longest piece shrinks, the DNA is not disappearing but breaking into pieces (candidate finding).")
+    L.append(f"- WHERE (on the contour): the contour position is reliable only for aligned frames (≈1–22) and for events within 6 px of the contour; "
+             f"only {n_valid_pos} of {n} candidates meet this condition, and none is persistent. In later frames the molecule changes shape, so no contour position is given.")
     if tests.get("verdict") == "too_few_events":
-        L.append(f"- NEREDE (kayıt gerektirmeyen ölçü): kesim oranı (en kısa yeni parça / tüm yeni parçalar) için yeterli olay yok "
-                 f"(iki parçalı ve uzunluğu korunan olay: {tests['n_two_piece_conserved']}); test yapılmadı.")
+        L.append(f"- WHERE (registration-free measure): not enough events for the cut fraction (shortest new piece / all new pieces) "
+                 f"(two-piece events with conserved length: {tests['n_two_piece_conserved']}); no test was done.")
     else:
-        L.append(f"- NEREDE (kayıt gerektirmeyen ölçü): iki parçalı ve uzunluğu korunan {tests['n_two_piece_conserved']} olayda kesim oranı rastgele bir kesimden "
-                 f"{'farklı' if 'differ' in tests['verdict'] else 'anlamlı biçimde farklı değil'} (KS p = {tests['ks_p_vs_uniform_cut']:.2f}); uçlara yakın kesim "
-                 f"{tests['n_near_end']} (rastgelede beklenen {tests['expected_near_end']}), iki yönlü binom p = {tests['binom_p_near_end']:.2f}.")
+        L.append(f"- WHERE (registration-free measure): in {tests['n_two_piece_conserved']} two-piece events with conserved length the cut fraction is "
+                 f"{'different from' if 'differ' in tests['verdict'] else 'not significantly different from'} a random cut (KS p = {tests['ks_p_vs_uniform_cut']:.2f}); cuts near the ends: "
+                 f"{tests['n_near_end']} (expected under random cutting {tests['expected_near_end']}), two-sided binomial p = {tests['binom_p_near_end']:.2f}.")
     cons = ev[~ev["conserved"]]
-    L.append(f"- Uzunluk korunumu: {len(cons)}/{n} adayda yeni parçaların toplamı eski nesneyle uyuşmuyor (tolerans %25). Bu adaylarda parçalar başka nesnelerle karışmış veya segmentasyon değişmiş olabilir; kesim oranı güvenilmez sayılır (şekilde x).")
-    L.append("- Özet sınır: kopma yeri için güvenilir veri yalnızca birkaç erken adayda var ve onlar yeniden birleşiyor. Kalıcı kopmaların yeri bu görüntülerle kesin söylenemez; ham veya daha az kaymış kareler gerekir.")
+    L.append(f"- Length conservation: in {len(cons)}/{n} candidates the sum of the new pieces does not match the old object (tolerance 25%). In these candidates pieces may have merged with other objects or the segmentation may have changed; the cut fraction is treated as unreliable (marked x in the figure).")
+    L.append("- Summary limit: reliable data on where the break happens exist only for a few early candidates, and those rejoin. The position of the persistent breaks cannot be stated firmly from these images; raw or less drifted frames are needed.")
     return "\n".join(L) + "\n"
 
 
@@ -194,7 +194,7 @@ def run(outputs: Path, s: WhereWhenSettings | None = None) -> dict:
     out = outputs / "where_when"
     out.mkdir(parents=True, exist_ok=True)
     ev.to_csv(out / "split_candidates_when_where.csv", index=False)
-    (out / "summary_tr.md").write_text(summary_text(ev, tests, dec, cp, int(ev["contour_position_reliable"].sum())), encoding="utf-8")
+    (out / "summary.md").write_text(summary_text(ev, tests, dec, cp, int(ev["contour_position_reliable"].sum())), encoding="utf-8")
     (out / "parameters.json").write_text(json.dumps({"settings": asdict(s), "tests": tests, "step_decomposition": dec, "change_point": cp,
                                                      "notes": "candidates only; contour position trusted only in aligned frames"}, indent=2), encoding="utf-8")
     figure(ev, lengths, cp, out)

@@ -1,8 +1,8 @@
 """Overview of the six supervisor requests, built only from the output files (no typed-in numbers).
 
 Writes outputs/supervisor/:
-  overview_rows.json   rows for the viewer's first tab (Turkish)
-  overview_tr.md       the same as text
+  overview_rows.json   rows for the viewer's first tab
+  overview.md       the same as text
   summary_en.md        a short summary for the supervisor (English)
   email_en.md          a plain reply email with the data requests (English)
 Missing inputs are reported as "not available" instead of failing, so the file can be built at any stage.
@@ -33,6 +33,13 @@ def _json(p: Path) -> dict:
 def _f(x, nd=1):
     try:
         return f"{float(x):.{nd}f}"
+    except (TypeError, ValueError):
+        return NA
+
+
+def _pct(x):
+    try:
+        return f"{100 * float(x):.0f}%"
     except (TypeError, ValueError):
         return NA
 
@@ -82,64 +89,64 @@ def collect(outputs: Path) -> dict:
         k["time_range"] = str(cpt.iloc[0]["time_range_min_estimated"])
     M = _json(outputs / "mechanisms" / "parameters.json")
     k["mech"] = M
-    txt = outputs / "mechanisms" / "summary_tr.md"
+    txt = outputs / "mechanisms" / "summary.md"
     k["mech_verdicts"] = [ln.strip("- *").strip() for ln in txt.read_text(encoding="utf-8").splitlines() if ln.startswith("- **H")] if txt.is_file() else []
     return k
 
 
 def _short_verdict(v: str) -> str:
-    """'H1 (name): veri belirsiz (long reason).' -> 'H1 (name): veri belirsiz'."""
+    """'H1 (name): data inconclusive (long reason).' -> 'H1 (name): data inconclusive'."""
     head, sep, rest = v.partition("): ")
     return (head + sep + rest.split(" (")[0].rstrip(".")) if sep else v
 
 
-def rows_tr(k: dict) -> list[dict]:
+def overview_rows(k: dict) -> list[dict]:
     r = []
     c = k.get("conf", {})
     p = k.get("pairs", {})
-    r.append({"no": 1, "istek": "Parlak özellikleri DNA boyunca takip et (hareket, boyut, parlaklık)",
-              "yapilan": "Zayıf ama tutarlı tepeleri de izleyen takip, rastgele noktalarla kontrol, iz güveni, özellikler arası mesafe, fotoğraf şeritleri",
-              "sonuc": f"İz sayısı {k.get('tracks', NA)}; tek karelik iz {k.get('old_single', NA)} → {k.get('single', NA)}; en az 6 kare süren iz {k.get('old_long', NA)} → {k.get('long', NA)}. "
-                       f"Güven: yüksek {c.get('high', 0)}, orta {c.get('medium', 0)}, düşük {c.get('low', 0)}. "
-                       f"Özellik çiftlerinde mesafe: {p.get('constant', NA)} sabit, {p.get('changes', NA)} değişiyor, {p.get('unclear', NA)} belirsiz (toplam {p.get('n', NA)}).",
-              "sinir": "Özelliklerin kimliği bilinmiyor; zayıf tespitlerin kontrolü rastgele izlerin %12'si de uzadığını gösteriyor.", "durum": "yapıldı, sınırlı"})
+    r.append({"no": 1, "request": "Track bright features along the DNA (movement, size, brightness)",
+              "done": "Tracking that also follows weak but consistent peaks, control with random points, track confidence, distance between features, photo strips",
+              "result": f"Number of tracks {k.get('tracks', NA)}; single-frame tracks {k.get('old_single', NA)} → {k.get('single', NA)}; tracks lasting at least 6 frames {k.get('old_long', NA)} → {k.get('long', NA)}. "
+                        f"Confidence: high {c.get('high', 0)}, medium {c.get('medium', 0)}, low {c.get('low', 0)}. "
+                        f"Distance in feature pairs: {p.get('constant', NA)} constant, {p.get('changes', NA)} changing, {p.get('unclear', NA)} unclear (total {p.get('n', NA)}).",
+              "limit": f"The identity of the features is unknown; in the control, {_pct(k.get('null', {}).get('fake_share_with_6plus'))} of random tracks also collect at least 5 weak peaks (real tracks: {_pct(k.get('null', {}).get('real_share_with_6plus'))}).", "status": "done, limited"})
     pp = k.get("pop", {})
-    r.append({"no": 2, "istek": "Dendrimerleri enzimlerden ayır",
-              "yapilan": "Boyut ve parlaklıkta topluluk testi, iz içi tutarlılık, hareket ve ömürle ilişki",
-              "sonuc": f"İki topluluk testi p = {_f(pp.get('p'), 3)} (sınırda); her özellik kendi boyutunu koruyor (ICC {_f(pp.get('icc'), 2)}). "
-                       "Boyut hareketi ve ömrü açıklamıyor.",
-              "sinir": "JPG renklerinden kimlik belirlenemez; alan ile parlaklık aynı şeyi ölçüyor. Kontrol görüntüleri ve ham veri gerekir.", "durum": "yapılamaz (veri yok), tanımlayıcı"})
+    r.append({"no": 2, "request": "Separate dendrimers from enzymes",
+              "done": "Population test on size and brightness, within-track consistency, relation to movement and lifetime",
+              "result": f"Two-population test p = {_f(pp.get('p'), 3)} (borderline); each feature keeps its own size (ICC {_f(pp.get('icc'), 2)}). "
+                        "Size does not explain movement or lifetime.",
+              "limit": "Identity cannot be determined from JPG colours; area and brightness measure the same thing. Control images and raw data are needed.", "status": "not possible (no data), descriptive"})
     h = k.get("heights", {})
-    r.append({"no": 3, "istek": "Yükseklik profili (zaman serisi topografya)",
-              "yapilan": "Ayarlanabilir [height] varsayımıyla nm yüksekliği, tutarlılık kontrolü, isteğe bağlı DNA çapası",
-              "sonuc": f"{'VARSAYIM (ölçüm değil)' if str(h.get('label', '')).startswith('ASSUMED') else 'ölçülmüş (doğrulanmış)'}: {_f(h.get('z'), 0)} nm renk aralığı doğrusal alınınca DNA sırtı {_f(h.get('ridge'))} nm "
-                       f"({'olağan aralıkta' if h.get('plausible') else 'olağan 0,5–2 nm aralığının dışında'}).",
-              "sinir": "Gerçek yükseklik yok; sayılar varsayımdır. Hoca ham veri ya da renk çubuğu verince status = confirmed yazılır.", "durum": "varsayımla yapıldı"})
+    r.append({"no": 3, "request": "Height profile (time-series topography)",
+              "done": "Height in nm under an adjustable [height] assumption, consistency check, optional DNA anchor",
+              "result": f"{'ASSUMED (not measured)' if str(h.get('label', '')).startswith('ASSUMED') else 'measured (confirmed)'}: taking the {_f(h.get('z'), 0)} nm colour range as linear gives a DNA ridge of {_f(h.get('ridge'))} nm "
+                        f"({'in the usual range' if h.get('plausible') else 'outside the usual 0.5–2 nm range'}).",
+              "limit": "There is no real height; the numbers are assumptions. When the supervisor provides raw data or the colour bar, set status = confirmed.", "status": "done under an assumption"})
     s = k.get("len", {}).get("sc", {})
     tt, tl = k.get("len", {}).get("tt", {}), k.get("len", {}).get("tl", {})
-    r.append({"no": 4, "istek": "Kontur uzunluğunun zamanla değişimi",
-              "yapilan": "Ölçüm sapması sahte eğrilerle ölçüldü ve düzeltildi, toplam ve en uzun parça, ölçek tutarlılık kontrolü",
-              "sonuc": f"Toplam uzunluk eğilimi {_f(tt.get('theil_sen_slope_per_frame'), 2)} px/kare (aralık {_f(tt.get('ci_low'), 2)} ile {_f(tt.get('ci_high'), 2)}), "
-                       f"en uzun parça {_f(tl.get('theil_sen_slope_per_frame'), 2)} px/kare. DNA kaybolmuyor, parçalanıyor görünüyor.",
-              "sinir": f"İlk karedeki DNA tahmini ölçekle {_f(s.get('frame1_largest_nm_at_estimated_scale'), 0)} nm; tam pBR322 {_f(s.get('plasmid_full_contour_nm'), 0)} nm olabilir. "
-                       "Ölçek ya da birleşik segmentasyon sorunu çözülmedi; nm değerleri kaba.", "durum": "piksel olarak yapıldı, nm belirsiz"})
+    r.append({"no": 4, "request": "Contour length over time",
+              "done": "Measurement bias measured with synthetic curves and corrected, total and longest piece, scale consistency check",
+              "result": f"Total length trend {_f(tt.get('theil_sen_slope_per_frame'), 2)} px/frame (interval {_f(tt.get('ci_low'), 2)} to {_f(tt.get('ci_high'), 2)}), "
+                        f"longest piece {_f(tl.get('theil_sen_slope_per_frame'), 2)} px/frame. The DNA does not disappear, it appears to fragment.",
+              "limit": f"At the estimated scale the DNA in the first frame is {_f(s.get('frame1_largest_nm_at_estimated_scale'), 0)} nm; the whole pBR322 can be {_f(s.get('plasmid_full_contour_nm'), 0)} nm. "
+                       "The scale or merged-segmentation problem is unresolved; nm values are rough.", "status": "done in pixels, nm uncertain"})
     cp, e, d = k.get("cp", {}), k.get("events", {}), k.get("dec", {})
-    r.append({"no": 5, "istek": "Kopma ne zaman ve nerede oluyor",
-              "yapilan": "Kırılma noktası, kopma adaylarının zamanı, kayıt gerektirmeyen kesim oranı",
-              "sonuc": f"Ana basamak kare {cp.get('rank', NA)} (aralık {cp.get('low', NA)}–{cp.get('high', NA)}), tahmini {str(k.get('time_range', NA)).replace(' to ', '–')} dakika. "
-                       f"{e.get('n', NA)} adaydan {e.get('persistent', NA)} tanesi kalıcı. Basamakta en uzun parça {d.get('largest_piece_before_px', NA)} → {d.get('largest_piece_after_px', NA)} px, toplam sabit.",
-              "sinir": f"Kontur konumu yalnızca {e.get('pos_reliable', NA)} erken adayda güvenilir, hiçbiri kalıcı değil. Zaman tahminidir, enzim ekleme anı bilinmiyor.", "durum": "yapıldı, yer sınırlı"})
-    r.append({"no": 6, "istek": "Üç mekanizmadan hangisi uyuyor (olasılık modeli)",
-              "yapilan": "Üç özellik kümesiyle konum modeli, Bayes faktörleri, kayıp testi, mesafe testi, sıkı karar kuralları",
-              "sonuc": " | ".join(_short_verdict(v) for v in k.get("mech_verdicts", [])) or NA,
-              "sinir": "Tek molekül, tek deney, kontrol yok, kopma adayı sayısı az; hiçbir mekanizma doğrulanmadı ya da çürütülmedi.", "durum": "yapıldı, belirsiz"})
+    r.append({"no": 5, "request": "When and where does the break happen",
+              "done": "Change point, timing of break candidates, registration-free cut fraction",
+              "result": f"Main step at frame {cp.get('rank', NA)} (interval {cp.get('low', NA)}–{cp.get('high', NA)}), estimated {str(k.get('time_range', NA)).replace(' to ', '–')} minutes. "
+                        f"Of {e.get('n', NA)} candidates, {e.get('persistent', NA)} are persistent. Across the step the longest piece goes {d.get('largest_piece_before_px', NA)} → {d.get('largest_piece_after_px', NA)} px, total constant.",
+              "limit": f"The contour position is reliable only for {e.get('pos_reliable', NA)} early candidates, none persistent. The time is an estimate; the enzyme addition time is unknown.", "status": "done, location limited"})
+    r.append({"no": 6, "request": "Which of the three mechanisms fits (probability model)",
+              "done": "Position model with three feature sets, Bayes factors, loss test, distance test, strict decision rules",
+              "result": " | ".join(_short_verdict(v) for v in k.get("mech_verdicts", [])) or NA,
+              "limit": "One molecule, one experiment, no control, few break candidates; no mechanism was confirmed or refuted.", "status": "done, inconclusive"})
     return r
 
 
-def overview_md_tr(rows: list[dict]) -> str:
-    out = ["# Hocanın 6 isteği: ne yapıldı, ne çıktı", ""]
+def overview_md(rows: list[dict]) -> str:
+    out = ["# The supervisor's 6 requests: what was done, what came out", ""]
     for x in rows:
-        out += [f"## {x['no']}. {x['istek']}", f"- Durum: {x['durum']}", f"- Yapılan: {x['yapilan']}", f"- Sonuç: {x['sonuc']}", f"- Sınır: {x['sinir']}", ""]
+        out += [f"## {x['no']}. {x['request']}", f"- Status: {x['status']}", f"- Done: {x['done']}", f"- Result: {x['result']}", f"- Limit: {x['limit']}", ""]
     return "\n".join(out)
 
 
@@ -205,9 +212,9 @@ def run(outputs: Path) -> dict:
     k = collect(outputs)
     out = outputs / "supervisor"
     out.mkdir(parents=True, exist_ok=True)
-    rows = rows_tr(k)
+    rows = overview_rows(k)
     (out / "overview_rows.json").write_text(json.dumps(rows, ensure_ascii=False, indent=2), encoding="utf-8")
-    (out / "overview_tr.md").write_text(overview_md_tr(rows), encoding="utf-8")
+    (out / "overview.md").write_text(overview_md(rows), encoding="utf-8")
     (out / "summary_en.md").write_text(summary_en(k), encoding="utf-8")
     (out / "email_en.md").write_text(email_en(k), encoding="utf-8")
     return {"rows": rows, "k": k}

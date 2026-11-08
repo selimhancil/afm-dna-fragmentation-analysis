@@ -379,30 +379,30 @@ def mechanism_table(trk: pd.DataFrame, ev: pd.DataFrame, null_all: dict, null_pe
     ev_with_near = int((ev["n_features_near"] > 0).sum()) if len(ev) else 0
     p_all = null_all.get("n_events", 0)
     rows = [
-        {"hypothesis": "H1", "hypothesis_tr": "Enzim dendrimerleri iterek keser",
-         "expected_if_true_tr": "Kopma yerinin yakınındaki parlak özellikler olaydan sonra kaybolur ya da yer değiştirir; "
-                                "bu oran diğer yerlerdeki kayıp oranından belirgin yüksektir.",
-         "observed": f"Kopma adaylarının {ev_with_near}/{len(ev)} tanesinin {s.near_event_px:.0f} px çevresinde özellik var. "
-                     f"Bu {near_total} özellikten {near_lost} kayboldu, {near_moved} yer değiştirdi. "
-                     f"Genel kayıp oranı {base.get('lost_fraction')} (n={base.get('n')}).",
-         "limitation_tr": "Çoğu aday kopma kısa sürede geri birleşiyor (görüntü hatası olabilir). Özelliklerin ne olduğu bilinmiyor."},
-        {"hypothesis": "H2", "hypothesis_tr": "Dendrimerler DNA üzerinde kendiliğinden kayar",
-         "expected_if_true_tr": "Uzun süre görünen özelliklerin birçoğu DNA boyunca net bir yer değiştirme gösterir "
-                                "ve bu kopma olaylarından bağımsızdır.",
-         "observed": f"{n_long} uzun izden {n_stat} tanesi sabit, {n_move} tanesi yer değiştirmiş "
-                     f"(sabit: konum medyanından en fazla {s.stationary_px:.0f} px sapma).",
-         "limitation_tr": "Hizalama ve eşleştirme hatası küçük kaymaları yapay üretebilir. Konum yalnızca piksel cinsinden."},
-        {"hypothesis": "H3", "hypothesis_tr": "Enzim yalnızca çıplak (korunmayan) bölgeleri keser",
-         "expected_if_true_tr": "Kopma yerleri rastgele DNA noktalarından parlak özelliklere daha uzaktır; "
-                                "özellikler kesikten sonra yerinde kalır.",
-         "observed": (f"Tüm adaylarda (n={p_all}) en yakın özelliğe uzaklık ortalaması {null_all.get('observed_mean_distance_px')} px, "
-                      f"rastgele DNA noktaları için {null_all.get('null_mean_distance_px')} px "
-                      f"(rastgeleden uzak olma p={null_all.get('p_farther_than_random')}, yakın olma p={null_all.get('p_closer_than_random')}). "
-                      f"Kalıcı 4 adayda: gözlenen {null_pers.get('observed_mean_distance_px')} px, rastgele {null_pers.get('null_mean_distance_px')} px "
-                      f"(uzak olma p={null_pers.get('p_farther_than_random')})."),
-         "limitation_tr": "Tek molekül, olaylar birbirinden bağımsız değil. Parlak özelliğin yanındaki soluk DNA parçaları eşiklemede "
-                          "kolayca kopuk görünür (Faz 4'te halka çağrısının üst parlak özelliğin yanındaki küçük boşluğa bağlı olduğunu görmüştük). "
-                          "Bu yüzden 'özelliğe yakın' sonucu yöntem etkisi olabilir, biyolojik bulgu sayılmaz. p değerleri yalnızca tanımlayıcıdır."}]
+        {"hypothesis": "H1", "hypothesis_name": "The enzyme pushes dendrimers away and then cuts",
+         "expected_if_true": "Bright features near the break site disappear or move after the event; "
+                                "this share is clearly higher than the loss share elsewhere.",
+         "observed": f"Of the break candidates, {ev_with_near}/{len(ev)} have a feature within {s.near_event_px:.0f} px. "
+                     f"Of these {near_total} features, {near_lost} disappeared and {near_moved} moved. "
+                     f"Overall loss share {base.get('lost_fraction')} (n={base.get('n')}).",
+         "limitation": "Most candidate breaks rejoin quickly (may be an imaging artefact). What the features are is unknown."},
+        {"hypothesis": "H2", "hypothesis_name": "Dendrimers slide along the DNA on their own",
+         "expected_if_true": "Many of the features visible for a long time show a clear displacement along the DNA "
+                                "and this is independent of the break events.",
+         "observed": f"Of {n_long} long tracks, {n_stat} are stationary and {n_move} moved "
+                     f"(stationary: at most {s.stationary_px:.0f} px deviation from the median position).",
+         "limitation": "Alignment and matching errors can create small shifts artificially. Position is in pixels only."},
+        {"hypothesis": "H3", "hypothesis_name": "The enzyme cuts only naked (unprotected) regions",
+         "expected_if_true": "Break sites are farther from bright features than random DNA points; "
+                                "features stay in place after the cut.",
+         "observed": (f"Over all candidates (n={p_all}) the mean distance to the nearest feature is {null_all.get('observed_mean_distance_px')} px, "
+                      f"for random DNA points {null_all.get('null_mean_distance_px')} px "
+                      f"(p for farther than random={null_all.get('p_farther_than_random')}, p for closer={null_all.get('p_closer_than_random')}). "
+                      f"In the 4 persistent candidates: observed {null_pers.get('observed_mean_distance_px')} px, random {null_pers.get('null_mean_distance_px')} px "
+                      f"(p for farther={null_pers.get('p_farther_than_random')})."),
+         "limitation": "One molecule, events are not independent of each other. Faint DNA pieces next to a bright feature "
+                          "easily look broken after thresholding (in Phase 4 we saw that the ring call depends on a small gap next to the top bright feature). "
+                          "The 'close to a feature' result may therefore be a method effect and does not count as a biological finding. The p values are only descriptive."}]
     df = pd.DataFrame(rows)
     df["verdict"] = "none: this data cannot separate the mechanisms; descriptive numbers only"
     return df
